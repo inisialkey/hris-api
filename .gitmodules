@@ -1,0 +1,3 @@
+[submodule "docs/handbook"]
+	path = docs/handbook
+	url = https://github.com/inisialkey/hris-handbook.git

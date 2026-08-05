@@ -1,0 +1,34 @@
+name: checks
+
+# Gate C11 (ci-cd.md §5). An uninitialised submodule fails *silently*: the
+# @-import in CLAUDE.md resolves to nothing and the session looks entirely
+# normal, so the agent reasons confidently with no anchors. This turns that
+# into a loud failure.
+#
+# Unfiltered by path on purpose — a required status check that is skipped never
+# reports, and GitHub reads never-reported as not-yet-passing, blocking the
+# merge forever.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: gates
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v7.0.1, pinned by commit SHA and never by tag: a tag is
+      # mutable and an action runs with repository secrets in scope.
+      # security-standards.md §137, ci-cd.md §375.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          submodules: true
+
+      - name: C11 - handbook submodule present
+        run: test -f docs/handbook/HANDBOOK_SPEC.md
