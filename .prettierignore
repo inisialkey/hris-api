@@ -1,0 +1,8 @@
+dist/
+node_modules/
+docs/handbook/
+src/database/migrations/
+# Byte-identical to ADR-0006's canonical block above its marker, and checked for
+# it by C13. A formatter reflowing that region would break the gate whose whole
+# purpose is that the region never changes locally.
+src/shared/result.ts

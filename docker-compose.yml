@@ -1,0 +1,46 @@
+# Local development stack (environments.md §4).
+#
+# Two of the five services in that section. `fake-gcs-server` and Mailpit arrive
+# with the modules that need them — document-storage and notification — because a
+# container nothing connects to teaches a developer nothing and rots quietly.
+# `admin-web` is deliberately never containerised (environments.md §4).
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hris
+    # Bound to the loopback address explicitly, not to 0.0.0.0. A stray service
+    # already holding the port then makes `docker compose up` fail with "address
+    # already in use" instead of coexisting with it — which is what a 0.0.0.0
+    # binding does, and it is silent: the application connects to whichever one
+    # answers 127.0.0.1 and everything appears to work against the wrong store.
+    ports: ['127.0.0.1:5432:5432']
+    # The init script runs once, on an empty data volume, and creates the three
+    # roles. The application connects as hris_app and never as postgres — see
+    # the script's own comment for why that is the highest-value rule here.
+    volumes:
+      - ./docker/postgres/init-roles.sql:/docker-entrypoint-initdb.d/00-roles.sql:ro
+      - hris-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d hris']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7
+    # noeviction, per ADR-0010: filling up must reject writes rather than evict,
+    # because evicting is how at-least-once delivery silently becomes at-most-once.
+    command: ['redis-server', '--maxmemory-policy', 'noeviction']
+    ports: ['127.0.0.1:6379:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  hris-pg:
