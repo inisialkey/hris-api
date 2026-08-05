@@ -1,9 +1,11 @@
 name: checks
 
-# Gate C11 (ci-cd.md §5). An uninitialised submodule fails *silently*: the
-# @-import in CLAUDE.md resolves to nothing and the session looks entirely
-# normal, so the agent reasons confidently with no anchors. This turns that
-# into a loud failure.
+# The gates ci-cd.md §5 assigns to this repository, minus the ones that have
+# nothing to run against yet. Present: C6, C7, C11, C12, part of C13, the
+# ADR-0005 route lint, and the G9-class integration suite (the multi-tenancy §5
+# leak matrix). Absent and named rather than quietly skipped: G1-G3 coverage
+# thresholds, G4-G8, G14 (no OpenAPI baseline to diff against yet), G21, C1-C5,
+# C9. Each arrives with the code it measures.
 #
 # Unfiltered by path on purpose — a required status check that is skipped never
 # reports, and GitHub reads never-reported as not-yet-passing, blocking the
@@ -21,6 +23,35 @@ jobs:
   gates:
     name: gates
     runs-on: ubuntu-latest
+
+    # Real PostgreSQL and Redis. The database is created from the same init
+    # script Compose uses, so CI, a laptop, and staging all run the application
+    # as `hris_app` — a non-owner without BYPASSRLS. Running CI as the owner
+    # would make every leak assertion pass vacuously (environments.md §4).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hris
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hris"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgres://hris_app:hris_app@localhost:5432/hris
+      DATABASE_MIGRATOR_URL: postgres://hris_migrator:hris_migrator@localhost:5432/hris
+      REDIS_URL: redis://localhost:6379
+
     steps:
       # actions/checkout v7.0.1, pinned by commit SHA and never by tag: a tag is
       # mutable and an action runs with repository secrets in scope.
@@ -30,5 +61,54 @@ jobs:
         with:
           submodules: true
 
+      # C11 — an uninitialised submodule fails *silently*: the @-import in
+      # CLAUDE.md resolves to nothing and the session looks entirely normal, so
+      # the agent reasons confidently with no anchors. This makes it loud.
       - name: C11 - handbook submodule present
         run: test -f docs/handbook/HANDBOOK_SPEC.md
+
+      # actions/setup-node v7.0.0, pinned by commit SHA for the same reason.
+      - name: Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: C12 + C13 - banned dependencies, handbook-managed regions
+        run: node scripts/handbook-check.mjs
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format
+        run: npm run format
+
+      # ADR-0005: a route with no @RequirePermission, @Public or
+      # @AuthenticatedOnly is a build failure, not a silent pass.
+      - name: Route lint
+        run: npm run lint:routes
+
+      - name: Database roles
+        run: psql "postgres://postgres:postgres@localhost:5432/hris" -f docker/postgres/init-roles.sql
+
+      # C6 — the migrations apply cleanly to an empty database. C7 is the drift
+      # check between the schema files and the generated SQL.
+      - name: C6 - migrate empty
+        run: npm run migrate
+
+      - name: C7 - drizzle-kit check
+        run: npm run db:check
+
+      - name: Unit tests
+        run: npm test
+
+      # The multi-tenancy §5 leak matrix, against real PostgreSQL. Testcontainers
+      # brings its own instance, so this does not touch the services above.
+      - name: Integration tests
+        run: npm run test:integration

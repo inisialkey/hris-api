@@ -2,3 +2,7 @@
 .claude/
 .agents/
 skills-lock.json
+node_modules/
+dist/
+.env
+*.tsbuildinfo

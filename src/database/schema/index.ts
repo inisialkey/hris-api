@@ -1,0 +1,6 @@
+// The single schema root drizzle-kit reads (backend-nestjs §2 rule 2).
+// Centralised for the tool, owned per module by the file it lives in.
+
+export * from './core.schema';
+export * from './auth.schema';
+export * from './scratch.schema';
