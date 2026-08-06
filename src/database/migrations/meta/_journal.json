@@ -57,6 +57,13 @@
       "when": 1785912248507,
       "tag": "0007_create_scratch_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785998286169,
+      "tag": "0008_create_audit_tables",
+      "breakpoints": true
     }
   ]
 }

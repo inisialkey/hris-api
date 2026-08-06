@@ -16,6 +16,7 @@ export const sharedErrors = {
   routeNotFound: () => new AppError('SYS_ROUTE_NOT_FOUND'),
   notFound: () => new AppError('SYS_NOT_FOUND'),
   rateLimited: (params: { retryAfterSeconds: number }) => new AppError('SYS_RATE_LIMITED', params),
+  invalidCursor: () => new AppError('VAL_INVALID_CURSOR'),
   validationFailed: (entries: ErrorDetailEntry[]) =>
     new AppError('VAL_VALIDATION_FAILED', { [FIELD_ENTRIES]: entries }),
 } as const;
@@ -28,6 +29,7 @@ export const fieldCodes = {
   tooShort: 'VAL_TOO_SHORT',
   tooLong: 'VAL_TOO_LONG',
   outOfRange: 'VAL_OUT_OF_RANGE',
+  dateRangeInvalid: 'VAL_DATE_RANGE_INVALID',
 } as const;
 
 export const sharedErrorStatus = {
@@ -37,4 +39,7 @@ export const sharedErrorStatus = {
   SYS_RATE_LIMITED: 429,
   SYS_SERVICE_UNAVAILABLE: 503,
   VAL_VALIDATION_FAILED: 422,
+  // 400, not 422: the cursor is opaque and client-supplied verbatim, so there is
+  // no field for a `VAL_` entry array to point at (error-catalog §4, ADR-0007).
+  VAL_INVALID_CURSOR: 400,
 } as const;

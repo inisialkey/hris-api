@@ -26,10 +26,21 @@ export interface ErrorEnvelope {
   };
 }
 
-/** Offset pagination `meta` (ADR-0007). Cursor `meta` arrives with its first feed. */
+/** Offset pagination `meta` (ADR-0007). */
 export interface OffsetMeta extends Record<string, unknown> {
   page: number;
   pageSize: number;
   totalItems: number;
   totalPages: number;
+}
+
+/**
+ * Cursor pagination `meta` (ADR-0007), arriving with its first feed — the audit
+ * log. **Never a total**: api-standards §5.4 makes that a rule rather than an
+ * omission, because a count alongside a keyset feed is a second full scan of the
+ * table the cursor style exists to avoid scanning.
+ */
+export interface CursorMeta extends Record<string, unknown> {
+  nextCursor: string | null;
+  hasMore: boolean;
 }
