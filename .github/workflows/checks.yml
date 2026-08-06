@@ -2,10 +2,13 @@ name: checks
 
 # The gates ci-cd.md §5 assigns to this repository, minus the ones that have
 # nothing to run against yet. Present: C6, C7, C11, C12, part of C13, the
-# ADR-0005 route lint, and the G9-class integration suite (the multi-tenancy §5
-# leak matrix). Absent and named rather than quietly skipped: G1-G3 coverage
-# thresholds, G4-G8, G14 (no OpenAPI baseline to diff against yet), G21, C1-C5,
-# C9. Each arrives with the code it measures.
+# ADR-0005 route lint, the G9-class integration suite (the multi-tenancy §5
+# leak matrix), G7 and G8 inside the unit suite (structural vectors + property
+# tests), and G20's counter — printed, not enforced: it gates release
+# promotion, and no promotion pipeline exists yet. Absent and named rather
+# than quietly skipped: G1-G3 coverage thresholds, G4-G6, G14 (no OpenAPI
+# baseline to diff against yet), G21, C1-C5, C9. Each arrives with the code it
+# measures.
 #
 # Unfiltered by path on purpose — a required status check that is skipped never
 # reports, and GitHub reads never-reported as not-yet-passing, blocking the
@@ -107,6 +110,9 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+      - name: G20 - statutory vectors pending verification (informational)
+        run: node scripts/pending-verification-count.mjs
 
       # The multi-tenancy §5 leak matrix, against real PostgreSQL. Testcontainers
       # brings its own instance, so this does not touch the services above.

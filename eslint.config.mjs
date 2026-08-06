@@ -56,7 +56,7 @@ export default tseslint.config(
           // tokens, which share the prefix vocabulary by design —
           // `Symbol('AUTH_LOOKUP_REPOSITORY')` is a port name, not a wire code.
           selector:
-            'Literal[value=/^(AUTH|AUTHZ|VAL|SYS|TEN|LVE|PAY|ATT)_[A-Z0-9_]+$/]:not(CallExpression[callee.name="Symbol"] > Literal)',
+            'Literal[value=/^(AUTH|AUTHZ|VAL|SYS|TEN|LVE|PAY|ATT|OVT)_[A-Z0-9_]+$/]:not(CallExpression[callee.name="Symbol"] > Literal)',
           message: 'Error codes are spelled in *.errors.ts only (coding-standards-nestjs §3).',
         },
       ],
