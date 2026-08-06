@@ -67,3 +67,40 @@ export interface IdentityQueryPort {
   findUser(userId: string): Promise<{ email: string } | null>;
   findTenant(tenantId: string): Promise<{ id: string; name: string; status: string } | null>;
 }
+
+/** The successor pair a rotation produced, exactly as the client receives it. */
+export interface RefreshSuccessor {
+  accessToken: string;
+  expiresInSeconds: number;
+  refreshToken: string;
+  /** Web sessions get the token as a cookie, mobile in the body (§7). */
+  web: boolean;
+  /** Remembered web sessions get a persistent cookie (ADR-0004's checkbox). */
+  persistCookie: boolean;
+}
+
+export const ROTATION_GRACE_CACHE = Symbol('ROTATION_GRACE_CACHE');
+
+/**
+ * BR-AUTH-005's 10-second idempotency window: old refresh hash → the successor
+ * pair, so a multi-tab race replays the *same* answer instead of dying as
+ * theft. Redis-backed per authentication.md §4 — the raw pair lives 10 seconds
+ * in a store the standards place in the database's trust class
+ * (security-standards §8).
+ */
+export interface RotationGracePort {
+  remember(oldTokenHash: string, successor: RefreshSuccessor): Promise<void>;
+  lookup(oldTokenHash: string): Promise<RefreshSuccessor | null>;
+}
+
+export const USED_TOKEN_HISTORY = Symbol('USED_TOKEN_HISTORY');
+
+/**
+ * Rotated-away refresh hashes, 7 days (authentication.md §4). A presented hash
+ * found here and not in `sessions` is a replay past the grace window — the
+ * family-revoke trigger of BR-AUTH-004.
+ */
+export interface UsedTokenHistoryPort {
+  remember(tokenHash: string, ref: { sessionId: string; tenantId: string }): Promise<void>;
+  lookup(tokenHash: string): Promise<{ sessionId: string; tenantId: string } | null>;
+}

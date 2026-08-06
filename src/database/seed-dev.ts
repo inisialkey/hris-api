@@ -41,7 +41,7 @@ const TENANTS = [
 ];
 
 /**
- * Only the key the skeleton's guarded route asks for.
+ * Only the keys the auth module's own routes ask for (authentication.md §2).
  *
  * The full catalog is code-defined and belongs to authorization-rbac
  * (ADR-0005); seeding a guess at it here would make this file the second
@@ -49,6 +49,11 @@ const TENANTS = [
  */
 const SKELETON_PERMISSIONS = [
   { key: 'auth.session.read', module: 'auth', description: 'List sessions of any user in tenant' },
+  { key: 'auth.session.revoke', module: 'auth', description: 'Revoke any session in tenant' },
+  { key: 'auth.device.read', module: 'auth', description: 'List devices of any user in tenant' },
+  { key: 'auth.device.revoke', module: 'auth', description: 'Revoke any device in tenant' },
+  { key: 'auth.user.unlock', module: 'auth', description: 'Clear a locked account' },
+  { key: 'auth.user.reset', module: 'auth', description: 'Trigger a password reset for a user' },
 ];
 
 async function main(): Promise<void> {

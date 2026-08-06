@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { CanActivate, ExecutionContext, Inject, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
@@ -6,6 +8,7 @@ import Redis from 'ioredis';
 import { REDIS } from '../../cache/redis.module';
 import { sharedErrors } from '../shared.errors';
 import { AppErrorException } from '../unwrap';
+import { REFRESH_COOKIE, readCookieValue } from './cookies';
 
 export const RATE_LIMIT = 'hris:rate-limit';
 
@@ -15,7 +18,7 @@ export interface RateWindow {
   /** Window length in seconds. */
   seconds: number;
   /** What the budget is counted against. */
-  by: 'ip' | 'body:email';
+  by: 'ip' | 'body:email' | 'refresh-token';
 }
 
 /**
@@ -93,6 +96,20 @@ export class RateLimitGuard implements CanActivate {
       // The trusted-proxy chain is configured at ingress; `X-Forwarded-For` from
       // an arbitrary hop is never trusted (security-standards §3).
       return req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    }
+
+    if (by === 'refresh-token') {
+      // security-standards §3's "per session" refresh budget: the token is 1:1
+      // with a session, and its SHA-256 keys the bucket so the raw credential
+      // never appears in a Redis key. Body first (mobile), cookie second (web).
+      const body: unknown = req.body;
+      let token: string | undefined;
+      if (typeof body === 'object' && body !== null && 'refreshToken' in body) {
+        const candidate = body.refreshToken;
+        if (typeof candidate === 'string') token = candidate;
+      }
+      token ??= readCookieValue(req.headers.cookie, REFRESH_COOKIE);
+      return token ? createHash('sha256').update(token).digest('hex').slice(0, 32) : undefined;
     }
 
     const body: unknown = req.body;

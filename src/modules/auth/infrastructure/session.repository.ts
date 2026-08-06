@@ -1,18 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, isNull, ne, sql } from 'drizzle-orm';
 import { uuidv7 } from 'uuidv7';
 
 import { ConnectionProvider } from '../../../database/connection.provider';
-import { sessions, users } from '../../../database/schema';
+import { devices, sessions, users } from '../../../database/schema';
 import { CLOCK, type Clock } from '../../../shared/clock.port';
-import type { NewSession, SessionRepositoryPort } from '../domain/auth.ports';
-
-export interface LiveSession {
-  id: string;
-  userId: string;
-  revokedAt: Date | null;
-  expiresAt: Date;
-}
+import type {
+  NewSession,
+  SessionListRow,
+  SessionRecord,
+  SessionRepositoryPort,
+  SessionRevokedReason,
+} from '../domain/auth.ports';
 
 /**
  * Sessions, under the resolved tenant's context.
@@ -36,6 +35,7 @@ export class SessionRepository implements SessionRepositoryPort {
       id,
       tenantId: session.tenantId,
       userId: session.userId,
+      deviceId: session.deviceId,
       refreshTokenHash: session.refreshTokenHash,
       trustedDevice: session.trustedDevice,
       ip: session.ip,
@@ -47,30 +47,98 @@ export class SessionRepository implements SessionRepositoryPort {
     return id;
   }
 
-  /**
-   * BR-AUTH-006's liveness predicate, minus the sliding window.
-   *
-   * The sliding half needs `last_used_at + auth.refresh_sliding_lifetime`, and
-   * that setting arrives with the settings module. Until then this checks the
-   * two halves that are already expressible — not revoked, and inside the
-   * absolute cap — which is a *narrower* liveness test than the rule, so it can
-   * only reject sessions the full predicate would also reject.
-   */
-  async findLive(sessionId: string): Promise<LiveSession | null> {
+  async findById(sessionId: string): Promise<SessionRecord | null> {
     const rows = await this.connection
       .handle()
-      .select({
-        id: sessions.id,
-        userId: sessions.userId,
-        revokedAt: sessions.revokedAt,
-        expiresAt: sessions.expiresAt,
-      })
+      .select(RECORD_COLUMNS)
       .from(sessions)
-      .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)));
+      .where(eq(sessions.id, sessionId));
+    return rows[0] ?? null;
+  }
 
-    const row = rows[0];
-    if (!row) return null;
-    return row.expiresAt > this.clock.now() ? row : null;
+  async rotate(sessionId: string, newRefreshTokenHash: string, now: Date): Promise<void> {
+    await this.connection
+      .handle()
+      .update(sessions)
+      .set({ refreshTokenHash: newRefreshTokenHash, lastUsedAt: now })
+      .where(eq(sessions.id, sessionId));
+  }
+
+  async revoke(sessionId: string, reason: SessionRevokedReason, now: Date): Promise<boolean> {
+    const revoked = await this.connection
+      .handle()
+      .update(sessions)
+      .set({ revokedAt: now, revokedReason: reason })
+      .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)))
+      .returning({ id: sessions.id });
+    return revoked.length > 0;
+  }
+
+  async revokeAllForUser(
+    userId: string,
+    reason: SessionRevokedReason,
+    now: Date,
+    exceptSessionId?: string,
+  ): Promise<string[]> {
+    const conditions = [eq(sessions.userId, userId), isNull(sessions.revokedAt)];
+    if (exceptSessionId) conditions.push(ne(sessions.id, exceptSessionId));
+
+    const revoked = await this.connection
+      .handle()
+      .update(sessions)
+      .set({ revokedAt: now, revokedReason: reason })
+      .where(and(...conditions))
+      .returning({ id: sessions.id });
+    return revoked.map((row) => row.id);
+  }
+
+  async revokeForDevice(deviceId: string, now: Date): Promise<string[]> {
+    const revoked = await this.connection
+      .handle()
+      .update(sessions)
+      .set({ revokedAt: now, revokedReason: 'device_revoked' })
+      .where(and(eq(sessions.deviceId, deviceId), isNull(sessions.revokedAt)))
+      .returning({ id: sessions.id });
+    return revoked.map((row) => row.id);
+  }
+
+  /**
+   * The live list (UC-AUTH-004): revoked rows are hidden, expired rows stay
+   * until the purge job (§9 — "a session list never shows a gap"), newest
+   * first. `deviceSummary` joins the registry; NULL device = a web session, the
+   * user agent carries the description.
+   */
+  async listForUser(
+    userId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ rows: SessionListRow[]; total: number }> {
+    const db = this.connection.handle();
+    const where = and(eq(sessions.userId, userId), isNull(sessions.revokedAt));
+
+    const [rows, totals] = await Promise.all([
+      db
+        .select({
+          id: sessions.id,
+          deviceSummary: sql<
+            string | null
+          >`case when ${devices.id} is null then null else ${devices.model} || ' (' || ${devices.platform} || ')' end`,
+          ip: sessions.ip,
+          userAgent: sessions.userAgent,
+          createdAt: sessions.createdAt,
+          lastUsedAt: sessions.lastUsedAt,
+          trustedDevice: sessions.trustedDevice,
+        })
+        .from(sessions)
+        .leftJoin(devices, eq(sessions.deviceId, devices.id))
+        .where(where)
+        .orderBy(sql`${sessions.createdAt} desc`)
+        .limit(pageSize)
+        .offset((page - 1) * pageSize),
+      db.select({ total: count() }).from(sessions).where(where),
+    ]);
+
+    return { rows, total: totals[0]?.total ?? 0 };
   }
 
   async stampLastLogin(userId: string): Promise<void> {
@@ -81,3 +149,15 @@ export class SessionRepository implements SessionRepositoryPort {
       .where(eq(users.id, userId));
   }
 }
+
+const RECORD_COLUMNS = {
+  id: sessions.id,
+  tenantId: sessions.tenantId,
+  userId: sessions.userId,
+  deviceId: sessions.deviceId,
+  trustedDevice: sessions.trustedDevice,
+  lastUsedAt: sessions.lastUsedAt,
+  expiresAt: sessions.expiresAt,
+  revokedAt: sessions.revokedAt,
+  revokedReason: sessions.revokedReason,
+};

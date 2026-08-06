@@ -1,17 +1,22 @@
-import { createHash, randomBytes } from 'node:crypto';
-
 import { Inject, Injectable } from '@nestjs/common';
 
 import { CLOCK, type Clock } from '../../../shared/clock.port';
 import { fail, ok, type Result } from '../../../shared/result';
+import { sharedErrors } from '../../../shared/shared.errors';
 import { authErrors } from '../domain/auth.errors';
 import {
   AUTH_LOOKUP_REPOSITORY,
+  AUTH_OUTBOX,
+  DEVICE_REPOSITORY,
   SESSION_REPOSITORY,
   type AuthLookupRepositoryPort,
+  type AuthOutboxPort,
   type CandidateUser,
+  type DeviceRepositoryPort,
   type SessionRepositoryPort,
 } from '../domain/auth.ports';
+import { AUTH_DEFAULTS } from './auth-defaults';
+import { mintRefreshToken } from './refresh-token';
 import {
   ACCESS_TOKEN_SERVICE,
   LOGIN_ATTEMPT_SERVICE,
@@ -23,6 +28,15 @@ import {
   type TenantTransactionPort,
 } from './ports/auth-services.port';
 
+export interface LoginDeviceInfo {
+  installId: string;
+  platform: 'android' | 'ios';
+  model: string;
+  osVersion: string;
+  appVersion: string;
+  fcmToken?: string;
+}
+
 export interface LoginCommand {
   email: string;
   password: string;
@@ -31,6 +45,10 @@ export interface LoginCommand {
   rememberDevice: boolean;
   ip: string;
   userAgent?: string;
+  /** Present = mobile login (§7: required for mobile, absent on web). */
+  device?: LoginDeviceInfo;
+  /** Self-service replacement under BR-AUTH-007. */
+  replaceDeviceId?: string;
 }
 
 export interface TenantChoice {
@@ -44,6 +62,8 @@ export type LoginResult =
       accessToken: string;
       expiresInSeconds: number;
       refreshToken: string;
+      /** Web sessions receive the refresh token as a cookie, mobile in the body (§7). */
+      web: boolean;
       user: { id: string; email: string };
       tenant: { id: string; name: string };
     }
@@ -65,6 +85,8 @@ export class LoginUseCase {
     @Inject(LOGIN_ATTEMPT_SERVICE) private readonly attempts: LoginAttemptPort,
     @Inject(ACCESS_TOKEN_SERVICE) private readonly tokens: AccessTokenPort,
     @Inject(SESSION_REPOSITORY) private readonly sessions: SessionRepositoryPort,
+    @Inject(DEVICE_REPOSITORY) private readonly devices: DeviceRepositoryPort,
+    @Inject(AUTH_OUTBOX) private readonly outbox: AuthOutboxPort,
     @Inject(TENANT_TRANSACTION) private readonly tx: TenantTransactionPort,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -163,25 +185,26 @@ export class LoginUseCase {
     cmd: LoginCommand,
     email: string,
   ): Promise<Result<LoginResult>> {
-    // Opaque 256-bit random, never a JWT: ADR-0004 needs revocation and a session
-    // list, and a stateless refresh token cannot be killed. Only the SHA-256 goes
-    // to the database — a dump of `sessions` is not a set of live credentials.
-    const refreshToken = randomBytes(32).toString('base64url');
-    const refreshTokenHash = createHash('sha256').update(refreshToken).digest('hex');
+    const { token: refreshToken, hash: refreshTokenHash } = mintRefreshToken();
 
     const sessionId = await this.tx.runInTenant(user.tenantId, async () => {
+      const deviceId = cmd.device ? await this.resolveDevice(user, cmd.device, cmd) : undefined;
+      if (typeof deviceId === 'object') return deviceId; // a Result — the refusal
+
       const id = await this.sessions.create({
         tenantId: user.tenantId,
         userId: user.id,
+        deviceId,
         refreshTokenHash,
         trustedDevice: cmd.rememberDevice,
         ip: cmd.ip,
         userAgent: cmd.userAgent,
-        expiresAt: this.absoluteExpiry(cmd.rememberDevice),
+        expiresAt: this.absoluteExpiry(cmd.rememberDevice, cmd.device !== undefined),
       });
       await this.sessions.stampLastLogin(user.id);
       return id;
     });
+    if (typeof sessionId !== 'string') return sessionId;
 
     const { token, expiresInSeconds } = await this.tokens.sign({
       sub: user.id,
@@ -197,20 +220,107 @@ export class LoginUseCase {
       accessToken: token,
       expiresInSeconds,
       refreshToken,
+      web: cmd.device === undefined,
       user: { id: user.id, email: user.email },
       tenant: { id: user.tenantId, name: tenantName },
     });
   }
 
   /**
-   * ADR-0004's web absolute caps: 30 days remembered, 12 hours not.
+   * BR-AUTH-007/BR-AUTH-014, inside the login transaction: resolve the install
+   * to a device row id, or return the refusal.
    *
-   * Mobile's 90-day cap arrives with device registration, which this skeleton
-   * does not issue — every session it mints is a web session with `device_id`
-   * NULL (BR-AUTH-014).
+   * A known active install is touched and reused. A revoked install is refused
+   * terminally — revocation is per install and per tenant, and it does not wash
+   * off with a re-login. A new install must fit under the device limit, or ride
+   * a valid self-service replacement, in which case old device and old sessions
+   * fall in this same transaction (the "atomically" of BR-AUTH-007).
    */
-  private absoluteExpiry(rememberDevice: boolean): Date {
-    const hours = rememberDevice ? 30 * 24 : 12;
+  private async resolveDevice(
+    user: CandidateUser,
+    device: LoginDeviceInfo,
+    cmd: LoginCommand,
+  ): Promise<string | Result<LoginResult>> {
+    const now = this.clock.now();
+    const existing = await this.devices.findByInstallId(device.installId);
+
+    if (existing) {
+      if (existing.status === 'revoked') return fail(authErrors.deviceRevoked());
+      await this.devices.touch(
+        existing.id,
+        {
+          model: device.model,
+          osVersion: device.osVersion,
+          appVersion: device.appVersion,
+          fcmToken: device.fcmToken,
+        },
+        now,
+      );
+      return existing.id;
+    }
+
+    const activeCount = await this.devices.countActiveForUser(user.id);
+    if (activeCount >= AUTH_DEFAULTS.maxActiveDevices) {
+      const policy = AUTH_DEFAULTS.deviceReplacementPolicy;
+      if (policy !== 'self_service' || !cmd.replaceDeviceId) {
+        // Under the `admin` policy the System Administrator is also notified of
+        // the blocked attempt (§13) — that consumer arrives with the
+        // notification module, a named omission until then.
+        return fail(
+          authErrors.deviceLimitReached({ maxDevices: AUTH_DEFAULTS.maxActiveDevices, policy }),
+        );
+      }
+
+      const old = await this.devices.findById(cmd.replaceDeviceId);
+      // Only the user's own active device is replaceable; anything else is a
+      // plain miss (error-catalog §2 existence hiding).
+      if (!old || old.userId !== user.id || old.status !== 'active') {
+        return fail(sharedErrors.notFound());
+      }
+
+      await this.devices.revoke(old.id, 'replaced', now);
+      const sessionIds = await this.sessions.revokeForDevice(old.id, now);
+      for (const sessionId of sessionIds) {
+        await this.outbox.emit({
+          name: 'auth.session.revoked',
+          tenantId: user.tenantId,
+          aggregateId: sessionId,
+          payload: { sessionId, userId: user.id, reason: 'device_revoked' },
+        });
+      }
+      await this.outbox.emit({
+        name: 'auth.device.revoked',
+        tenantId: user.tenantId,
+        aggregateId: old.id,
+        payload: { deviceId: old.id, userId: user.id },
+      });
+    }
+
+    return this.devices.create(
+      {
+        tenantId: user.tenantId,
+        userId: user.id,
+        installId: device.installId,
+        platform: device.platform,
+        model: device.model,
+        osVersion: device.osVersion,
+        appVersion: device.appVersion,
+        fcmToken: device.fcmToken,
+      },
+      now,
+    );
+  }
+
+  /**
+   * ADR-0004's absolute caps: mobile 90 days; web 30 days remembered, 12 hours
+   * not. The sliding halves live in the refresh path (BR-AUTH-006).
+   */
+  private absoluteExpiry(rememberDevice: boolean, mobile: boolean): Date {
+    const hours = mobile
+      ? AUTH_DEFAULTS.refreshAbsoluteDaysMobile * 24
+      : rememberDevice
+        ? AUTH_DEFAULTS.refreshAbsoluteDaysWeb * 24
+        : AUTH_DEFAULTS.refreshUnrememberedHoursWeb;
     return new Date(this.clock.now().getTime() + hours * 3600 * 1000);
   }
 }

@@ -1,5 +1,47 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+
+/** `device` object of §7 — mobile-required, web-absent. */
+export class LoginDeviceDto {
+  @ApiProperty({ format: 'uuid', description: 'Client-generated per install (ADR-0004)' })
+  @IsUUID()
+  installId!: string;
+
+  @ApiProperty({ enum: ['android', 'ios'] })
+  @IsIn(['android', 'ios'])
+  platform!: 'android' | 'ios';
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(200)
+  model!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(100)
+  osVersion!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(100)
+  appVersion!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  fcmToken?: string;
+}
 
 /**
  * Transport validation only (authentication.md §8, backend-nestjs §6). This DTO
@@ -30,4 +72,15 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   rememberDevice?: boolean;
+
+  @ApiPropertyOptional({ type: LoginDeviceDto, description: 'Mobile required; absent = web' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LoginDeviceDto)
+  device?: LoginDeviceDto;
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Self-service replacement (BR-AUTH-007)' })
+  @IsOptional()
+  @IsUUID()
+  replaceDeviceId?: string;
 }
