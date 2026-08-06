@@ -120,25 +120,25 @@ export class DeviceRepository implements DeviceRepositoryPort {
     const db = this.connection.handle();
     const where = eq(devices.userId, userId);
 
-    const [rows, totals] = await Promise.all([
-      db
-        .select({
-          id: devices.id,
-          platform: devices.platform,
-          model: devices.model,
-          osVersion: devices.osVersion,
-          appVersion: devices.appVersion,
-          status: devices.status,
-          lastSeenAt: devices.lastSeenAt,
-          createdAt: devices.createdAt,
-        })
-        .from(devices)
-        .where(where)
-        .orderBy(sql`${devices.createdAt} desc`)
-        .limit(pageSize)
-        .offset((page - 1) * pageSize),
-      db.select({ total: count() }).from(devices).where(where),
-    ]);
+    // Sequential, not `Promise.all`: the transaction rides one `pg` socket
+    // (coding-standards-nestjs §4).
+    const rows = await db
+      .select({
+        id: devices.id,
+        platform: devices.platform,
+        model: devices.model,
+        osVersion: devices.osVersion,
+        appVersion: devices.appVersion,
+        status: devices.status,
+        lastSeenAt: devices.lastSeenAt,
+        createdAt: devices.createdAt,
+      })
+      .from(devices)
+      .where(where)
+      .orderBy(sql`${devices.createdAt} desc`)
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    const totals = await db.select({ total: count() }).from(devices).where(where);
 
     return { rows, total: totals[0]?.total ?? 0 };
   }

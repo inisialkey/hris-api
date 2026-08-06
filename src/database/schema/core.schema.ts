@@ -230,6 +230,14 @@ export const companies = pgTable(
     ...tenantId,
     code: text('code').notNull(), // human key for imports/numbers
     name: text('name').notNull(),
+    // Legal identity — organization.md §4.1, added by that module's migration.
+    // All nullable: provisioning creates the company (BR-ADM-006) and an admin
+    // fills these in afterwards, so a NOT NULL here would block the tenant's
+    // first transaction on data nobody has typed yet.
+    legalName: text('legal_name'), // PT ... as registered
+    npwp: text('npwp'), // corporate tax id — printed on tax documents, outside ADR-0016 scope
+    address: text('address'),
+    phone: text('phone'),
     ...auditColumns,
     ...softDeleteColumns,
   },

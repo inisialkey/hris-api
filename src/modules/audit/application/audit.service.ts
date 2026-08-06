@@ -1,12 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import { getTableName } from 'drizzle-orm';
+
 import { currentRequestContext, requireTenantContext } from '../../../shared/context';
 import {
   AUDIT_REPOSITORY,
   type AuditActorType,
+  type AuditChange,
+  type AuditChangePort,
   type AuditPort,
   type AuditRepositoryPort,
 } from '../domain/audit.ports';
+import { buildChangeDiff } from '../domain/audited-tables';
 
 /**
  * UC-AUD-003 — the sensitive-read channel, and the only write path that exists
@@ -25,8 +30,41 @@ import {
  * always leaves a trace — into a best effort, silently.
  */
 @Injectable()
-export class AuditService implements AuditPort {
+export class AuditService implements AuditPort, AuditChangePort {
   constructor(@Inject(AUDIT_REPOSITORY) private readonly repository: AuditRepositoryPort) {}
+
+  /**
+   * UC-AUD-001 — channel 1. Same properties as the read channel and for the same
+   * reason: the insert joins the mutating transaction, so it commits with the
+   * change or not at all (BR-AUD-002). Nothing is caught.
+   *
+   * Masking is applied here rather than in the repository base, because
+   * BR-AUD-005 and the §4.2 registry are this module's and a caller that could
+   * choose what to mask would be a caller that could choose not to.
+   */
+  async recordChange(change: AuditChange): Promise<void> {
+    const tenant = requireTenantContext();
+    const request = currentRequestContext();
+    const entityType = getTableName(change.table);
+    const diff = buildChangeDiff(change.table, change.action, change.before, change.after);
+
+    // An update whose changed-column set is empty changed nothing anyone can
+    // read back. Filing it would add a row per no-op save to the trail this log
+    // exists to make legible.
+    if (change.action === 'updated' && Object.keys(diff.changed).length === 0) return;
+
+    await this.repository.append({
+      tenantId: tenant.tenantId,
+      actorType: actorType(request?.userId),
+      actorUserId: request?.userId,
+      impersonatorId: tenant.impersonatorId,
+      requestId: request?.requestId,
+      action: `${entityType}.${change.action}`,
+      entityType,
+      entityId: change.entityId,
+      diff,
+    });
+  }
 
   async sensitiveRead(
     actionKey: string,

@@ -3,7 +3,12 @@ import { Module } from '@nestjs/common';
 import { AnchorService } from './application/anchor.service';
 import { AuditQueryUseCase } from './application/audit-query.use-case';
 import { AuditService } from './application/audit.service';
-import { AUDIT_ANCHOR_REPOSITORY, AUDIT_PORT, AUDIT_REPOSITORY } from './domain/audit.ports';
+import {
+  AUDIT_ANCHOR_REPOSITORY,
+  AUDIT_CHANGE_PORT,
+  AUDIT_PORT,
+  AUDIT_REPOSITORY,
+} from './domain/audit.ports';
 import { AuditAnchorRepository } from './infrastructure/audit-anchor.repository';
 import { AuditRepository } from './infrastructure/audit.repository';
 import { AuditController } from './presentation/audit.controller';
@@ -25,9 +30,10 @@ import { AuditController } from './presentation/audit.controller';
     AuditQueryUseCase,
     AnchorService,
     { provide: AUDIT_PORT, useExisting: AuditService },
+    { provide: AUDIT_CHANGE_PORT, useExisting: AuditService },
     { provide: AUDIT_REPOSITORY, useClass: AuditRepository },
     { provide: AUDIT_ANCHOR_REPOSITORY, useClass: AuditAnchorRepository },
   ],
-  exports: [AUDIT_PORT],
+  exports: [AUDIT_PORT, AUDIT_CHANGE_PORT],
 })
 export class AuditModule {}

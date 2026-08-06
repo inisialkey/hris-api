@@ -71,6 +71,13 @@
       "when": 1786002300033,
       "tag": "0009_create_settings_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786022949018,
+      "tag": "0010_create_organization_tables",
+      "breakpoints": true
     }
   ]
 }
