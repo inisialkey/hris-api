@@ -5,9 +5,13 @@
  * structural by revoking UPDATE/DELETE from `hris_app`. Rows arrive through
  * three channels instead: the same-transaction repository hook (BR-AUD-002),
  * consumed event facts (BR-AUD-003), and the explicit sensitive-read call below
- * (BR-AUD-007). Only the third exists today; the other two are named in the
- * module's README-level note and in the handbook assumption that records the gap.
+ * (BR-AUD-007). Channels 1 and 3 exist; channel 2 arrives with the event relay,
+ * which has no dispatcher yet (ADR-0010).
  */
+
+import type { PgTable } from 'drizzle-orm/pg-core';
+
+import type { AuditChangeAction } from './audited-tables';
 
 export type AuditActorType = 'user' | 'system' | 'platform_op';
 
@@ -106,6 +110,31 @@ export interface AuditAnchorRepositoryPort {
   /** The chain link: the newest anchor strictly before `day`. */
   findPreviousDigest(day: string): Promise<string | null>;
   insert(tenantId: string, anchor: AnchorRecord): Promise<void>;
+}
+
+export const AUDIT_CHANGE_PORT = Symbol('AUDIT_CHANGE_PORT');
+
+/**
+ * Channel 1 (BR-AUD-002), the same-transaction repository hook.
+ *
+ * The caller is `TenantScopedRepository` and nothing else: a module that wanted
+ * to file a change by hand would be a module writing its own audit trail, which
+ * is the thing the hook exists to make impossible to forget. The table object
+ * rather than its name, because BR-AUD-005 layer 1 derives masking from the
+ * **column type** and a name cannot carry that.
+ */
+export interface AuditChange {
+  table: PgTable;
+  action: AuditChangeAction;
+  entityId: string;
+  /** Absent on `created`. */
+  before?: Record<string, unknown>;
+  /** Absent on `deleted`. */
+  after?: Record<string, unknown>;
+}
+
+export interface AuditChangePort {
+  recordChange(change: AuditChange): Promise<void>;
 }
 
 export const AUDIT_PORT = Symbol('AUDIT_PORT');

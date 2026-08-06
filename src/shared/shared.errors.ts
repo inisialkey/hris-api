@@ -30,6 +30,8 @@ export const fieldCodes = {
   tooLong: 'VAL_TOO_LONG',
   outOfRange: 'VAL_OUT_OF_RANGE',
   dateRangeInvalid: 'VAL_DATE_RANGE_INVALID',
+  /** Per-field uniqueness against live rows (error-catalog §4, `{ field }`). */
+  duplicate: 'VAL_DUPLICATE',
 } as const;
 
 export const sharedErrorStatus = {

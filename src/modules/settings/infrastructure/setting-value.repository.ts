@@ -71,16 +71,16 @@ export class SettingValueRepository implements SettingValueRepositoryPort {
     const db = this.connection.handle();
     const where = and(eq(settingValues.key, key), atScope(scope));
 
-    const [rows, totals] = await Promise.all([
-      db
-        .select()
-        .from(settingValues)
-        .where(where)
-        .orderBy(desc(settingValues.effectiveFrom), desc(settingValues.id))
-        .limit(page.limit)
-        .offset(page.offset),
-      db.select({ total: count() }).from(settingValues).where(where),
-    ]);
+    // Sequential, not `Promise.all`: the transaction rides one `pg` socket
+    // (coding-standards-nestjs §4).
+    const rows = await db
+      .select()
+      .from(settingValues)
+      .where(where)
+      .orderBy(desc(settingValues.effectiveFrom), desc(settingValues.id))
+      .limit(page.limit)
+      .offset(page.offset);
+    const totals = await db.select({ total: count() }).from(settingValues).where(where);
 
     return {
       rows: rows.map((row) => ({

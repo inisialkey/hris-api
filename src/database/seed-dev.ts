@@ -66,6 +66,36 @@ const SKELETON_PERMISSIONS = [
     module: 'settings',
     description: 'Definition-level override for statutory-adjacent keys (settings §2)',
   },
+  {
+    key: 'organization.company.read',
+    module: 'organization',
+    description: 'Read companies in scope',
+  },
+  {
+    key: 'organization.company.configure',
+    module: 'organization',
+    description: 'Create, edit and archive companies (create/archive need tenant-wide scope)',
+  },
+  {
+    key: 'organization.structure.read',
+    module: 'organization',
+    description: 'Read branches, departments, job levels and positions',
+  },
+  {
+    key: 'organization.structure.configure',
+    module: 'organization',
+    description: 'Configure structure; job levels additionally need tenant-wide scope',
+  },
+  {
+    key: 'organization.assignment.read',
+    module: 'organization',
+    description: 'Read employee placement history',
+  },
+  {
+    key: 'organization.assignment.assign',
+    module: 'organization',
+    description: 'Move employees and cancel scheduled moves',
+  },
 ];
 
 async function main(): Promise<void> {

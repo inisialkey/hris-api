@@ -116,27 +116,27 @@ export class SessionRepository implements SessionRepositoryPort {
     const db = this.connection.handle();
     const where = and(eq(sessions.userId, userId), isNull(sessions.revokedAt));
 
-    const [rows, totals] = await Promise.all([
-      db
-        .select({
-          id: sessions.id,
-          deviceSummary: sql<
-            string | null
-          >`case when ${devices.id} is null then null else ${devices.model} || ' (' || ${devices.platform} || ')' end`,
-          ip: sessions.ip,
-          userAgent: sessions.userAgent,
-          createdAt: sessions.createdAt,
-          lastUsedAt: sessions.lastUsedAt,
-          trustedDevice: sessions.trustedDevice,
-        })
-        .from(sessions)
-        .leftJoin(devices, eq(sessions.deviceId, devices.id))
-        .where(where)
-        .orderBy(sql`${sessions.createdAt} desc`)
-        .limit(pageSize)
-        .offset((page - 1) * pageSize),
-      db.select({ total: count() }).from(sessions).where(where),
-    ]);
+    // Sequential, not `Promise.all`: the transaction rides one `pg` socket
+    // (coding-standards-nestjs §4).
+    const rows = await db
+      .select({
+        id: sessions.id,
+        deviceSummary: sql<
+          string | null
+        >`case when ${devices.id} is null then null else ${devices.model} || ' (' || ${devices.platform} || ')' end`,
+        ip: sessions.ip,
+        userAgent: sessions.userAgent,
+        createdAt: sessions.createdAt,
+        lastUsedAt: sessions.lastUsedAt,
+        trustedDevice: sessions.trustedDevice,
+      })
+      .from(sessions)
+      .leftJoin(devices, eq(sessions.deviceId, devices.id))
+      .where(where)
+      .orderBy(sql`${sessions.createdAt} desc`)
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    const totals = await db.select({ total: count() }).from(sessions).where(where);
 
     return { rows, total: totals[0]?.total ?? 0 };
   }
