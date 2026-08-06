@@ -1,0 +1,439 @@
+{
+  "engine": "bpjs/monthly-contributions",
+  "rateSet": "structural-fiction-v1",
+  "_readme": [
+    "Structural vectors (ADR-0018 §3): rate-independent logic only, computed against the",
+    "deliberately fictional BPJS section of structural-fiction-v1.ts — rates in 10%-steps,",
+    "caps on round numbers, a JP age ceiling of 100, a rounding unit of 1000. Nothing here",
+    "is or resembles Indonesian regulation.",
+    "What these pin: the §4.3 resolution ladder's order, floor_applies selection per row,",
+    "per-program caps binding differently in one run, the JP ceiling deriving from birthDate,",
+    "the per-program-per-payer month credit, employer premiums classified regular vs",
+    "non_taxable, the deductible JHT+JP pair, the dependent surcharge, and half-up rounding",
+    "to the unit.",
+    "A failing vector is a code defect until a human re-verifies it and records why it",
+    "changed; a vector is never edited to make a test pass (testing-strategy §6.1).",
+    "Input mirrors BpjsInput minus `parameters` (injected by the runner from the declared",
+    "rateSet). Expected omits `trace` — the runner asserts trace completeness structurally."
+  ],
+  "vectors": [
+    {
+      "id": "all-programs-baseline",
+      "source": "bpjs.md §4.3 ladder; BR-BPJS-002 — five programs, one shape; JKK priced from the risk table (class ii)",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "800000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "1600000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "floor-lifts-only-where-it-applies",
+      "source": "BR-BPJS-008 — the floor lifts the Kesehatan base to the branch minimum; floor_applies=false programs price on the raw wage",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": "9000000.00", "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "9000000.00", "amount": "900000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "9000000.00", "amount": "1800000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "caps-bind-differently-in-one-run",
+      "source": "BR-BPJS-009 — Kesehatan and JP cap at different amounts in the same run; JHT, JKK, JKM stay uncapped",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "12000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "1000000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "2000000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "12000000.00", "amount": "3600000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "12000000.00", "amount": "4800000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "12000000.00", "amount": "240000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "12000000.00", "amount": "9600000.00" }
+        ],
+        "deductibleContributions": { "jht": "3600000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "thr-run-charges-nothing",
+      "source": "BR-BPJS-010, §4.6 — a THR run pays no monthly wage; without this rule the floor would lift its zero base to a full month",
+      "input": {
+        "paymentDate": "2026-03-28", "taxMonth": "2026-03", "runType": "thr",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "0.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": "5200000.00", "mtd": []
+      },
+      "expected": {
+        "contributions": [],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "exiter-settlement-credited-to-zero",
+      "source": "BR-BPJS-010, §9 — an exiter in both the regular run and a final settlement in one month is charged exactly once",
+      "input": {
+        "paymentDate": "2026-03-28", "taxMonth": "2026-03", "runType": "final_settlement",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "mtd": [
+          { "program": "kesehatan", "base": "8000000.00", "employeeCharged": "800000.00", "employerCharged": "1600000.00" },
+          { "program": "jht", "base": "8000000.00", "employeeCharged": "2400000.00", "employerCharged": "3200000.00" },
+          { "program": "jp", "base": "5000000.00", "employeeCharged": "2500000.00", "employerCharged": "3000000.00" },
+          { "program": "jkk", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "160000.00" },
+          { "program": "jkm", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "6400000.00" }
+        ]
+      },
+      "expected": {
+        "contributions": [],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "mid-month-raise-charges-the-difference",
+      "source": "BR-BPJS-010 — the second run computes a higher month-due and charges only the difference; JP is fully credited and emits no line",
+      "input": {
+        "paymentDate": "2026-03-28", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "10000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "mtd": [
+          { "program": "kesehatan", "base": "8000000.00", "employeeCharged": "800000.00", "employerCharged": "1600000.00" },
+          { "program": "jht", "base": "8000000.00", "employeeCharged": "2400000.00", "employerCharged": "3200000.00" },
+          { "program": "jp", "base": "5000000.00", "employeeCharged": "2500000.00", "employerCharged": "3000000.00" },
+          { "program": "jkk", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "160000.00" },
+          { "program": "jkm", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "6400000.00" }
+        ]
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "200000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "400000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "600000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "800000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "40000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "1600000.00" }
+        ],
+        "deductibleContributions": { "jht": "600000.00", "jp": "0.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "credit-is-per-program",
+      "source": "BR-BPJS-010 — a Kesehatan surplus is not absorbed by JP's charge; each program credits only against itself",
+      "input": {
+        "paymentDate": "2026-03-28", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "mtd": [
+          { "program": "kesehatan", "base": "8000000.00", "employeeCharged": "5000000.00", "employerCharged": "5000000.00" }
+        ]
+      },
+      "expected": {
+        "contributions": [
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "exclusion-suppresses-one-program",
+      "source": "BR-BPJS-005 — an exclusion row suppresses JHT and leaves the other four charging; the deductible pair reflects the absent line",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": ["jht"] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "800000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "1600000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "0.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "jp-age-attained-on-payment-date",
+      "source": "BR-BPJS-006; A-188 — the fictional ceiling of 100 is attained on the birthday itself: JP stops with no row written",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1926-03-25", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "800000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "1600000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "0.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "jp-contributes-the-day-before-the-ceiling",
+      "source": "BR-BPJS-006 — one day short of the ceiling birthday still contributes; the boundary sits on the birthday, not the year",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1926-03-26", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "800000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "1600000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "three-dependents-add-three-multiples",
+      "source": "BR-BPJS-013 — a count of 3 adds exactly three surcharge multiples of the Kesehatan base, employee-paid, outside the deductible pair",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 3, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "800000.00" },
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_dependents_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "1600000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "settlement-credits-the-dependent-surcharge",
+      "source": "BR-BPJS-010, BR-BPJS-013 — mtd carries one figure per program and payer, surcharge included: a settlement after a regular run with three dependents charges nothing, surcharge included. Crediting only the main line would re-charge the surcharge in full",
+      "input": {
+        "paymentDate": "2026-03-28", "taxMonth": "2026-03", "runType": "final_settlement",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 3, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "mtd": [
+          { "program": "kesehatan", "base": "8000000.00", "employeeCharged": "3200000.00", "employerCharged": "1600000.00" },
+          { "program": "jht", "base": "8000000.00", "employeeCharged": "2400000.00", "employerCharged": "3200000.00" },
+          { "program": "jp", "base": "5000000.00", "employeeCharged": "2500000.00", "employerCharged": "3000000.00" },
+          { "program": "jkk", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "160000.00" },
+          { "program": "jkm", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "6400000.00" }
+        ]
+      },
+      "expected": {
+        "contributions": [],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "partial-credit-allocates-the-main-line-first",
+      "source": "BR-BPJS-010; A-188 — a raise with dependents: the Kesehatan employee bucket owes 4,000,000, is credited 3,200,000, and the 800,000 difference lands on the main line before the surcharge sees any of it",
+      "input": {
+        "paymentDate": "2026-03-28", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "10000000.00", "additionalDependents": 3, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "mtd": [
+          { "program": "kesehatan", "base": "8000000.00", "employeeCharged": "3200000.00", "employerCharged": "1600000.00" },
+          { "program": "jht", "base": "8000000.00", "employeeCharged": "2400000.00", "employerCharged": "3200000.00" },
+          { "program": "jp", "base": "5000000.00", "employeeCharged": "2500000.00", "employerCharged": "3000000.00" },
+          { "program": "jkk", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "160000.00" },
+          { "program": "jkm", "base": "8000000.00", "employeeCharged": "0.00", "employerCharged": "6400000.00" }
+        ]
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "800000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "400000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "600000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "800000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "40000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "1600000.00" }
+        ],
+        "deductibleContributions": { "jht": "600000.00", "jp": "0.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "rounding-half-up-at-the-unit",
+      "source": "BR-BPJS-014; A-188 — every amount is a multiple of the unit; 833.5 and 2500.5 units round up (half-up), the rest are exact",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8335000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8335000.00", "amount": "834000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8335000.00", "amount": "1667000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8335000.00", "amount": "2501000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8335000.00", "amount": "3334000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8335000.00", "amount": "167000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8335000.00", "amount": "6668000.00" }
+        ],
+        "deductibleContributions": { "jht": "2501000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "sub-floor-wage-charges-above-the-pay",
+      "source": "BR-BPJS-008, §9 — the floored base exceeds what the employee is paid; correct, and the first thing an admin will query",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "5000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": "5200000.00", "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5200000.00", "amount": "520000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "5200000.00", "amount": "1040000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "1500000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2000000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "5000000.00", "amount": "100000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "5000000.00", "amount": "4000000.00" }
+        ],
+        "deductibleContributions": { "jht": "1500000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "floor-above-the-cap-caps-last",
+      "source": "BR-BPJS-009 — the composition is min(max(upah, floor), cap): a floor above the cap still caps at the cap. The reversed order would report a 12M base",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": "12000000.00", "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "10000000.00", "amount": "1000000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "10000000.00", "amount": "2000000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "160000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "risk-class-selects-the-jkk-row",
+      "source": "BR-BPJS-002 — class v prices JKK from its own row; every other line is unchanged from the baseline",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "v" },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [
+          { "program": "kesehatan", "payer": "employee", "componentCode": "bpjs_kesehatan_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "800000.00" },
+          { "program": "kesehatan", "payer": "employer", "componentCode": "bpjs_kesehatan_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "1600000.00" },
+          { "program": "jht", "payer": "employee", "componentCode": "bpjs_jht_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "2400000.00" },
+          { "program": "jht", "payer": "employer", "componentCode": "bpjs_jht_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "8000000.00", "amount": "3200000.00" },
+          { "program": "jp", "payer": "employee", "componentCode": "bpjs_jp_ee", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "2500000.00" },
+          { "program": "jp", "payer": "employer", "componentCode": "bpjs_jp_er", "wageCategory": "non_wage", "incomeClass": "non_taxable", "base": "5000000.00", "amount": "3000000.00" },
+          { "program": "jkk", "payer": "employer", "componentCode": "bpjs_jkk_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "400000.00" },
+          { "program": "jkm", "payer": "employer", "componentCode": "bpjs_jkm_er", "wageCategory": "non_wage", "incomeClass": "regular", "base": "8000000.00", "amount": "6400000.00" }
+        ],
+        "deductibleContributions": { "jht": "2400000.00", "jp": "2500000.00" },
+        "warnings": []
+      }
+    },
+    {
+      "id": "unregistered-company-warns-and-computes-nothing",
+      "source": "BR-BPJS-004 — absent tenant configuration warns and contributes nothing; it never fails the run",
+      "input": {
+        "paymentDate": "2026-03-25", "taxMonth": "2026-03", "runType": "regular",
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "upahSebulan": "8000000.00", "additionalDependents": 0, "excludedPrograms": [] },
+        "company": { "registered": false, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null, "mtd": []
+      },
+      "expected": {
+        "contributions": [],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "warnings": [{ "code": "company_not_registered" }]
+      }
+    }
+  ]
+}
