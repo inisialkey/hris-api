@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { stableStringify } from '../../../shared/stable-json';
 import type { AuditLogRow } from './audit.ports';
 
 /**
@@ -37,7 +38,9 @@ function boundaryUuid(epochMs: number): string {
 
 /**
  * One row's contribution. Every column is in it: a digest that ignored
- * `metadata` would certify a row whose `metadata` had been rewritten.
+ * `metadata` would certify a row whose `metadata` had been rewritten. The two
+ * jsonb columns go through `stableStringify` because jsonb does not round-trip
+ * key order, and a false "tamper detected" costs an investigation.
  */
 export function rowHash(row: AuditLogRow): string {
   return sha256(
@@ -51,8 +54,8 @@ export function rowHash(row: AuditLogRow): string {
       row.action,
       row.entityType,
       row.entityId,
-      canonical(row.diff),
-      canonical(row.metadata),
+      stableStringify(row.diff),
+      stableStringify(row.metadata),
       row.eventId,
     ]),
   );
@@ -74,19 +77,4 @@ export function computeDigest(rows: readonly AuditLogRow[], prevDigest: string |
 
 function sha256(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
-}
-
-/**
- * jsonb round-trips with its own key order, and `JSON.stringify` is order
- * sensitive, so the same stored value could hash two ways across a dump and
- * restore. A false "tamper detected" costs an investigation; sorting keys costs
- * nothing.
- */
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value === null || typeof value !== 'object') return value;
-  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0,
-  );
-  return entries.map(([key, nested]) => [key, canonical(nested)]);
 }

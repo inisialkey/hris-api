@@ -11,6 +11,7 @@ import { DatabaseModule } from './database/database.module';
 import { TransactionInterceptor } from './database/transaction.interceptor';
 import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
+import { SettingsModule } from './modules/settings';
 import { AuthzModule, PermissionGuard } from './modules/authz';
 import { HealthModule } from './modules/health/health.module';
 import { ScratchModule } from './modules/scratch/scratch.module';
@@ -82,6 +83,7 @@ registerErrorStatuses(sharedErrorStatus);
     AuthzModule,
     AuthModule,
     AuditModule,
+    SettingsModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,

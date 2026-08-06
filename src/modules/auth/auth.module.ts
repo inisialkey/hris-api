@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { OutboxRepository } from '../../database/outbox.repository';
 import { registerErrorStatuses } from '../../shared/error-status.registry';
 import { AuthzModule } from '../authz';
 import { AccountAdminUseCase } from './application/account-admin.use-case';
@@ -29,7 +30,6 @@ import {
 } from './domain/auth.ports';
 import { AccessTokenService } from './infrastructure/access-token.service';
 import { AuthLookupRepository } from './infrastructure/auth-lookup.repository';
-import { AuthOutboxRepository } from './infrastructure/auth-outbox.repository';
 import { AuthTokenRepository } from './infrastructure/auth-token.repository';
 import { DeviceRepository } from './infrastructure/device.repository';
 import { IdentityRepository } from './infrastructure/identity.repository';
@@ -69,7 +69,9 @@ registerErrorStatuses(authErrorStatus);
     { provide: DEVICE_REPOSITORY, useClass: DeviceRepository },
     { provide: AUTH_TOKEN_REPOSITORY, useClass: AuthTokenRepository },
     { provide: USER_ACCOUNT_REPOSITORY, useClass: UserAccountRepository },
-    { provide: AUTH_OUTBOX, useClass: AuthOutboxRepository },
+    // The port keeps auth's typed event-name union; the writer is the shared one
+    // (ADR-0010's outbox is platform machinery, not this module's).
+    { provide: AUTH_OUTBOX, useExisting: OutboxRepository },
     { provide: PASSWORD_SERVICE, useClass: PasswordService },
     { provide: LOGIN_ATTEMPT_SERVICE, useClass: LoginAttemptService },
     { provide: ACCESS_TOKEN_SERVICE, useClass: AccessTokenService },

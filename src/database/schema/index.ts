@@ -4,4 +4,5 @@
 export * from './core.schema';
 export * from './auth.schema';
 export * from './audit.schema';
+export * from './settings.schema';
 export * from './scratch.schema';

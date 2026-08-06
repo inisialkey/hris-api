@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 
 import { CLOCK, SystemClock } from '../shared/clock.port';
 import { ConnectionProvider, DRIZZLE, type Database } from './connection.provider';
+import { OutboxRepository } from './outbox.repository';
 import { TransactionInterceptor } from './transaction.interceptor';
 import { UnitOfWork } from './unit-of-work';
 
@@ -12,8 +13,10 @@ export const PG_POOL = Symbol('PG_POOL');
 
 /**
  * Pool, UnitOfWork, ConnectionProvider — the three things backend-nestjs §8.1
- * requires, and nothing else. Global because every module's repositories need
- * the provider and none of them should have to import a database module.
+ * requires, plus ADR-0010's outbox writer, which belongs beside the
+ * unit-of-work it rides rather than in whichever module emitted first. Global
+ * because every module's repositories need the provider and none of them should
+ * have to import a database module.
  */
 @Global()
 @Module({
@@ -38,8 +41,17 @@ export const PG_POOL = Symbol('PG_POOL');
     ConnectionProvider,
     UnitOfWork,
     TransactionInterceptor,
+    OutboxRepository,
   ],
-  exports: [DRIZZLE, PG_POOL, CLOCK, ConnectionProvider, UnitOfWork, TransactionInterceptor],
+  exports: [
+    DRIZZLE,
+    PG_POOL,
+    CLOCK,
+    ConnectionProvider,
+    UnitOfWork,
+    TransactionInterceptor,
+    OutboxRepository,
+  ],
 })
 export class DatabaseModule implements OnApplicationShutdown {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}

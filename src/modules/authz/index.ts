@@ -2,6 +2,9 @@
 
 export { AuthzModule } from './authz.module';
 export { PermissionResolverService } from './application/permission-resolver.service';
+// A module refusing an action on a permission key it resolved itself raises the
+// same code the guard does — one condition, one code (error-catalog §1).
+export { authzErrors } from './domain/authz.errors';
 export { PermissionGuard } from './presentation/permission.guard';
 export {
   AuthenticatedOnly,

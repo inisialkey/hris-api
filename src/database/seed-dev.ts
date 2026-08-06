@@ -55,6 +55,17 @@ const SKELETON_PERMISSIONS = [
   { key: 'auth.user.unlock', module: 'auth', description: 'Clear a locked account' },
   { key: 'auth.user.reset', module: 'auth', description: 'Trigger a password reset for a user' },
   { key: 'audit.log.read', module: 'audit', description: 'Query the audit log and verify anchors' },
+  { key: 'settings.setting.read', module: 'settings', description: 'Read definitions and values' },
+  {
+    key: 'settings.setting.configure',
+    module: 'settings',
+    description: 'Write, schedule and cancel setting values',
+  },
+  {
+    key: 'settings.statutory_policy.configure',
+    module: 'settings',
+    description: 'Definition-level override for statutory-adjacent keys (settings §2)',
+  },
 ];
 
 async function main(): Promise<void> {
