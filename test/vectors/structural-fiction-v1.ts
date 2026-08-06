@@ -124,4 +124,51 @@ export const structuralFictionV1 = {
       contribution_rounding_unit: '1000',
     },
   },
+
+  /**
+   * PPh 21 fiction: PTKP exactly 100,000,000 and band boundaries on round
+   * millions — ADR-0018 §4's own examples. Rates in 10%-steps; a non-NPWP
+   * surcharge of 100% (a doubling nobody could mistake for the real
+   * percentage); PKP floors to whole millions so the down-rounding is visible
+   * at a glance. `terBands` is one category's set — the adapter filters by
+   * category, so the fixture carries what the calculator receives.
+   */
+  tax: {
+    ptkpAnnualAmount: '100000000.00',
+    terBands: [
+      { from: '0.00', to: '10000000.00', rate: '0.1000' },
+      { from: '10000000.00', to: '20000000.00', rate: '0.2000' },
+      { from: '20000000.00', to: null, rate: '0.3000' },
+    ],
+    progressiveBands: [
+      { from: '0.00', to: '100000000.00', rate: '0.1000' },
+      { from: '100000000.00', to: '200000000.00', rate: '0.2000' },
+      { from: '200000000.00', to: null, rate: '0.3000' },
+    ],
+    severanceBands: [
+      { from: '0.00', to: '100000000.00', rate: '0.1000' },
+      { from: '100000000.00', to: null, rate: '0.2000' },
+    ],
+    scalars: {
+      biaya_jabatan_pct: '0.1000',
+      biaya_jabatan_monthly_cap: '1000000.00',
+      biaya_jabatan_annual_cap: '10000000.00',
+      non_npwp_surcharge_pct: '1.0000',
+      pkp_rounding_unit: '1000000.00',
+      pph21_rounding_unit: '1000.00',
+    },
+  },
+
+  /**
+   * Payroll fiction: an overtime divisor of 100 (the statutory one is a
+   * three-digit number this deliberately is not), a basis floor of exactly
+   * one half, and a line rounding unit of 100 so stage rounding is visible.
+   */
+  payroll: {
+    scalars: {
+      overtime_divisor: '100.00',
+      overtime_basis_floor_pct: '0.5000',
+      line_rounding_unit: '100.00',
+    },
+  },
 } as const;

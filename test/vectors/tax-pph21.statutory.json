@@ -1,0 +1,90 @@
+{
+  "engine": "tax-pph21/withholding",
+  "rateSet": "PENDING — the verified statutory rate set, entered by a human against current regulation",
+  "_readme": [
+    "Statutory vectors (ADR-0018 §3): real published rates, real expected rupiah, verified by",
+    "a human against current Indonesian regulation. None is verified yet, so every entry is",
+    "status pending-verification with null input and expected: an assistant never types a",
+    "regulatory number (ai-development-guide §5).",
+    "This quarantined list IS track 3's task list. The statutory advisor fills input and",
+    "expected — ideally from the regulation's own worked examples — cites the exact",
+    "instrument and article in source, flips status to verified, and records the",
+    "verification in the same commit. The runner refuses a verified entry until the",
+    "statutory rate set is wired.",
+    "The pending count is printed by CI and blocks release promotion for the calculators the",
+    "release exposes (G20, ADR-0018 §5). It never blocks a merge.",
+    "⚠️ VERIFY: confirm against current Indonesian regulation before implementation."
+  ],
+  "vectors": [
+    {
+      "id": "ter-monthly-worked-example",
+      "source": "BR-TAX-006 ⚠️ VERIFY — the TER category mapping from PTKP status and a published monthly worked example (PMK 168/2023 family)",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "ter-band-boundary",
+      "source": "BR-TAX-006 ⚠️ VERIFY — a cumulative bruto landing exactly on a published TER band boundary",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "ter-combined-month-two-payments",
+      "source": "BR-TAX-006, BR-TAX-007 ⚠️ VERIFY — whether TER applies to combined monthly bruto across several payments in one month",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "ptkp-amounts-per-status",
+      "source": "BR-TAX-005 ⚠️ VERIFY — the PTKP amount per status (TK/0 … K/I/3) and the start-of-year pin rule",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "annual-december-recalculation",
+      "source": "BR-TAX-008 ⚠️ VERIFY — the annual sequence: biaya jabatan at its rate and caps, deductible JHT+JP, PTKP, PKP rounding, Article 17 brackets, credit of the year's withholding",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "annual-refund",
+      "source": "BR-TAX-008, UC-TAX-006 ⚠️ VERIFY — a December remainder that is negative and returns as a refund",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "non-npwp-surcharge",
+      "source": "BR-TAX-009 ⚠️ VERIFY — the surcharge percentage and whether the rule survives NIK-as-NPWP (0 if retired)",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "grossup-allowance",
+      "source": "BR-TAX-010 ⚠️ VERIFY — a gross-up worked example: the tunjangan pajak equals the withholding and take-home is unchanged",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "severance-final-tariff",
+      "source": "BR-TAX-011 ⚠️ VERIFY — the severance final bands and whether the tariff is cumulative across tranches (PP 68/2009 family)",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "rounding-units-and-directions",
+      "source": "BR-TAX-016 ⚠️ VERIFY — the PKP rounding unit and its down direction, and the PPh 21 rounding unit and its direction",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    }
+  ]
+}

@@ -1,0 +1,237 @@
+{
+  "engine": "tax-pph21/withholding",
+  "rateSet": "structural-fiction-v1",
+  "_readme": [
+    "Structural vectors (ADR-0018 §3): rate-independent logic only, computed against the",
+    "deliberately fictional tax section of structural-fiction-v1.ts — PTKP 100,000,000, band",
+    "boundaries on round millions, 10%-step rates, a 100% non-NPWP surcharge. Nothing here",
+    "is or resembles Indonesian regulation.",
+    "What these pin: TER on the month's cumulative bruto with the MTD credit, band lower",
+    "edges inclusive, the gross-up closed form landing in the band that priced it, the",
+    "annual sequence (biaya jabatan under both caps → deductible contributions → PTKP → PKP",
+    "floored DOWN → marginal brackets → credits), a negative remainder emerging as a refund,",
+    "prior-employer figures feeding the annual path only, the severance bands cumulative",
+    "over the year and outside both paths, and half-up rounding of the withholding.",
+    "A failing vector is a code defect until a human re-verifies it and records why it",
+    "changed; a vector is never edited to make a test pass (testing-strategy §6.1).",
+    "Input mirrors Pph21Input minus `parameters` (injected by the runner from the declared",
+    "rateSet). Expected omits `trace` — the runner asserts trace presence structurally."
+  ],
+  "vectors": [
+    {
+      "id": "monthly-first-run",
+      "source": "BR-TAX-006 — TER band on the month's bruto, nothing yet withheld",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "8000000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "800000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "8000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "thr-run-prices-the-combined-band",
+      "source": "BR-TAX-006, BR-TAX-007, §4.6 — the second run in a month prices cumulative bruto at the higher band and credits what the first withheld",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-28", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "thr", "incomeClass": "irregular", "amount": "10000000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "10000000.00", "pph21Withheld": "2000000.00" },
+        "ytd": { "gross": "20000000.00", "taxableRegular": "20000000.00", "taxableIrregular": "0.00", "pph21Withheld": "2000000.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "4000000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "0.00", "taxableIrregular": "10000000.00" }
+    },
+    {
+      "id": "ter-band-lower-edge-inclusive",
+      "source": "BR-TAX-006, ADR-0018 §3 — cumulative bruto exactly on a boundary belongs to the higher band: [from, to) is inclusive at the lower edge",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "10000000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "2000000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "10000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "one-rupiah-under-the-boundary",
+      "source": "BR-TAX-006; A-189 — 9,999,000 stays in the lower band; 999,900 raw rounds half-up to the 1000 unit",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "9999000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "1000000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "9999000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "non-npwp-surcharge-multiplies",
+      "source": "BR-TAX-009 — no NPWP doubles the computed withholding under the fictional 100% surcharge",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": false, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "8000000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "1600000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "8000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "grossup-within-the-band",
+      "source": "BR-TAX-010 — A = r·G/(1−r): 800,000/0.9 = 888,888.89 rounds to 889,000; allowance equals the withholding, take-home unchanged",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross_up", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "8000000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "889000.00", "taxAllowance": "889000.00", "finalTax": "0.00", "taxableRegular": "8889000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "grossup-crosses-into-the-next-band",
+      "source": "BR-TAX-010; A-189 — the allowance is taxable bruto, so the solution must land in the band that priced it: 9.5M solves at 20%, not 10%",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross_up", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "9500000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "2375000.00", "taxAllowance": "2375000.00", "finalTax": "0.00", "taxableRegular": "11875000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "annual-negative-remainder-is-a-refund",
+      "source": "BR-TAX-008, UC-TAX-006 — PKP floors at zero under the fictional PTKP; the December remainder is negative and emerges as a refund line",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-12-25", "path": "annual",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "8000000.00" } ],
+        "deductibleContributions": { "jht": "2000000.00", "jp": "1000000.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "88000000.00", "taxableRegular": "88000000.00", "taxableIrregular": "0.00", "pph21Withheld": "8800000.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "-8800000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "8000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "annual-three-brackets-annual-cap-binds",
+      "source": "BR-TAX-008 — 330M gross: biaya jabatan hits the annual cap, PKP 215M walks three marginal brackets, YTD withheld credits",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-12-25", "path": "annual",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "30000000.00" } ],
+        "deductibleContributions": { "jht": "3000000.00", "jp": "2000000.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "300000000.00", "taxableRegular": "300000000.00", "taxableIrregular": "0.00", "pph21Withheld": "30000000.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "4500000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "30000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "pkp-rounds-down-to-the-unit",
+      "source": "BR-TAX-016 — PKP 215,678,432 floors to 215,000,000: the withholding matches the round-figure vector exactly. Half-up here would price 216M",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-12-25", "path": "annual",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "30000000.00" } ],
+        "deductibleContributions": { "jht": "3000000.00", "jp": "2000000.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "300678432.00", "taxableRegular": "300678432.00", "taxableIrregular": "0.00", "pph21Withheld": "30000000.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "4500000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "30000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "prior-employer-feeds-the-annual-path-only",
+      "source": "BR-TAX-014 — the prior employer's neto joins the annual neto and its PPh 21 joins the credits; the monthly TER never saw either",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-12-25", "path": "annual",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "30000000.00" } ],
+        "deductibleContributions": { "jht": "3000000.00", "jp": "2000000.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "300000000.00", "taxableRegular": "300000000.00", "taxableIrregular": "0.00", "pph21Withheld": "30000000.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "previousEmployer": { "neto": "50000000.00", "pph21": "4000000.00", "months": 6 }
+      },
+      "expected": { "withholding": "15500000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "30000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "severance-priced-on-its-own-bands",
+      "source": "BR-TAX-011 — a 150M final line walks the severance layers (10M + 10M) and never enters the TER base: the monthly withholding sees only the 8M salary",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-06-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [
+          { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "8000000.00" },
+          { "componentCode": "severance", "incomeClass": "final", "amount": "150000000.00" }
+        ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "40000000.00", "taxableRegular": "40000000.00", "taxableIrregular": "0.00", "pph21Withheld": "4000000.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "800000.00", "taxAllowance": null, "finalTax": "20000000.00", "taxableRegular": "8000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "severance-second-tranche-is-cumulative",
+      "source": "BR-TAX-011; A-189 — a second 50M tranche prices the cumulative 200M on the layers and credits the 20M already withheld: 10M, not 5M",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-09-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "severance", "incomeClass": "final", "amount": "50000000.00" } ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "40000000.00", "taxableRegular": "40000000.00", "taxableIrregular": "0.00", "pph21Withheld": "4000000.00", "finalIncome": "150000000.00", "pph21Final": "20000000.00" }
+      },
+      "expected": { "withholding": "0.00", "taxAllowance": null, "finalTax": "10000000.00", "taxableRegular": "0.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "annual-grossup-solves-to-a-fixed-point",
+      "source": "BR-TAX-010; A-189 — A = W(A) through the PKP floor: 6,300,000 reproduces itself (PKP 221.3M floors to 221M, tax 36.3M, credit 30M)",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-12-25", "path": "annual",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross_up", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "30000000.00" } ],
+        "deductibleContributions": { "jht": "3000000.00", "jp": "2000000.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "300000000.00", "taxableRegular": "300000000.00", "taxableIrregular": "0.00", "pph21Withheld": "30000000.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "6300000.00", "taxAllowance": "6300000.00", "finalTax": "0.00", "taxableRegular": "36300000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "grossup-against-a-refund-clamps-to-zero",
+      "source": "tax-pph21.md §9 — the allowance solves against a negative withholding to zero, never negative; the refund still reaches the employee as the reduced deduction",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-12-25", "path": "annual",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross_up", "monthsEmployedInYear": 12 },
+        "lines": [ { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "8000000.00" } ],
+        "deductibleContributions": { "jht": "2000000.00", "jp": "1000000.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "88000000.00", "taxableRegular": "88000000.00", "taxableIrregular": "0.00", "pph21Withheld": "8800000.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "-8800000.00", "taxAllowance": "0.00", "finalTax": "0.00", "taxableRegular": "8000000.00", "taxableIrregular": "0.00" }
+    },
+    {
+      "id": "non-taxable-lines-enter-no-base",
+      "source": "§4.6 — a non_taxable line is excluded from every base: withholding and taxable figures are identical to the salary-only vector",
+      "input": {
+        "taxYear": 2026, "paymentDate": "2026-03-25", "path": "monthly",
+        "employee": { "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "method": "gross", "monthsEmployedInYear": 12 },
+        "lines": [
+          { "componentCode": "basic_salary", "incomeClass": "regular", "amount": "8000000.00" },
+          { "componentCode": "bpjs_jht_er", "incomeClass": "non_taxable", "amount": "3200000.00" }
+        ],
+        "deductibleContributions": { "jht": "0.00", "jp": "0.00" },
+        "mtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" }
+      },
+      "expected": { "withholding": "800000.00", "taxAllowance": null, "finalTax": "0.00", "taxableRegular": "8000000.00", "taxableIrregular": "0.00" }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "engine": "payroll/employee-pipeline",
+  "rateSet": "PENDING — the verified statutory rate set, entered by a human against current regulation",
+  "_readme": [
+    "Statutory vectors (ADR-0018 §3): real published parameters, real expected rupiah,",
+    "verified by a human against current Indonesian regulation. None is verified yet, so",
+    "every entry is status pending-verification with null input and expected: an assistant",
+    "never types a regulatory number (ai-development-guide §5).",
+    "This quarantined list IS track 3's task list. The statutory advisor fills input and",
+    "expected, cites the exact instrument and article in source, flips status to verified,",
+    "and records the verification in the same commit. The runner refuses a verified entry",
+    "until the statutory rate set is wired.",
+    "The pending count is printed by CI and blocks release promotion for the calculators the",
+    "release exposes (G20, ADR-0018 §5). It never blocks a merge.",
+    "⚠️ VERIFY: confirm against current Indonesian regulation before implementation."
+  ],
+  "vectors": [
+    {
+      "id": "upah-sebulan-composition",
+      "source": "BR-PAY-003 ⚠️ VERIFY — which wage categories compose upah sebulan and total wage (UU 13/2003 jo. Cipta Kerja family)",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "overtime-hourly-basis-divisor-and-floor",
+      "source": "BR-PAY-004 ⚠️ VERIFY — the 1/173 divisor and the 75%-of-total-wage basis floor, with a worked figure",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "proration-divisor",
+      "source": "BR-PAY-013 ⚠️ VERIFY — the lawful proration divisor for mid-period join, exit, and unpaid absence",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "thr-entitlement-ladder",
+      "source": "BR-PAY-015 ⚠️ VERIFY — the one-month service threshold, the below-twelve-months proration formula, and the pre-holiday entitlement window",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "sick-leave-wage-percentages",
+      "source": "BR-PAY-014 ⚠️ VERIFY — the statutory percentage per quarter of illness; deliberately absent from the track-2 pipeline slice and arriving with the module",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "stage-rounding-rules",
+      "source": "BR-PAY-012 ⚠️ VERIFY — the rounding rule and direction per statutory stage",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    }
+  ]
+}

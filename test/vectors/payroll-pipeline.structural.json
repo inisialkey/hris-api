@@ -1,0 +1,405 @@
+{
+  "engine": "payroll/employee-pipeline",
+  "rateSet": "structural-fiction-v1",
+  "_readme": [
+    "Structural vectors (ADR-0018 §3) for payroll.md §4.5's eight-stage pipeline, computed",
+    "against the fictional rate set — including the BPJS and tax sections, because stages 4",
+    "and 6 invoke those calculators in place. Nothing here is or resembles Indonesian",
+    "regulation (overtime divisor 100, basis floor one half, line unit 100).",
+    "What these pin: the statutory bases as category formulas (BR-PAY-003), the 75%-floor",
+    "shape on the overtime basis (BR-PAY-004, at the fictional half), proration touching",
+    "lines but never the bases (BR-PAY-013, BR-PAY-027), employer premiums reaching taxable",
+    "assembly while deduction lines never do (BR-PAY-026), the THR entitlement ladder",
+    "(BR-PAY-015), the gross-up line pair footing, the final-settlement composition, and",
+    "net = Σ earning − Σ deduction over rounded lines with employer_cost outside both",
+    "(BR-PAY-012).",
+    "A failing vector is a code defect until a human re-verifies it and records why it",
+    "changed; a vector is never edited to make a test pass (testing-strategy §6.1).",
+    "Input mirrors PayrollEmployeeInput minus `parameters` (injected by the runner from the",
+    "declared rateSet). Expected omits `trace`; the runner asserts the net foots from the",
+    "lines themselves on every vector."
+  ],
+  "vectors": [
+    {
+      "id": "bases-from-wage-categories",
+      "source": "BR-PAY-003, §4.5 worked example — upah sebulan sums basic and fixed allowance; total wage adds variable; the classification decides, not the component name",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3000000.00", "proratable": true },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "amount": "500000.00", "proratable": false },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "amount": "4000000.00", "proratable": false }
+        ],
+        "overtime": null, "proration": null, "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3500000.00", "totalWage": "7500000.00", "overtimeHourlyBasis": null, "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "3000000.00" },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "quantity": null, "amount": "500000.00" },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "quantity": null, "amount": "4000000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "750000.00" }
+        ],
+        "taxable": { "regular": "7500000.00", "irregular": "0.00" },
+        "netPay": "6750000.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "overtime-basis-floor-binds",
+      "source": "BR-PAY-004, §4.5 worked example (fictional half) — max(3.5M, 0.5 × 7.5M) / 100 = 37,500: the comparison between two bases no per-component flag can express",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3000000.00", "proratable": true },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "amount": "500000.00", "proratable": false },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "amount": "4000000.00", "proratable": false }
+        ],
+        "overtime": { "multiplierHours": "10.0000" }, "proration": null, "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3500000.00", "totalWage": "7500000.00", "overtimeHourlyBasis": "37500.00", "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "3000000.00" },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "quantity": null, "amount": "500000.00" },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "quantity": null, "amount": "4000000.00" },
+          { "code": "overtime", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": "10.0000", "amount": "375000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "788000.00" }
+        ],
+        "taxable": { "regular": "7875000.00", "irregular": "0.00" },
+        "netPay": "7087000.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "overtime-basis-floor-not-binding",
+      "source": "BR-PAY-004 — a small variable allowance leaves the floor under upah sebulan: the basis is the wage itself, 3.5M / 100 = 35,000",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3000000.00", "proratable": true },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "amount": "500000.00", "proratable": false },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "amount": "1000000.00", "proratable": false }
+        ],
+        "overtime": { "multiplierHours": "10.0000" }, "proration": null, "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3500000.00", "totalWage": "4500000.00", "overtimeHourlyBasis": "35000.00", "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "3000000.00" },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "quantity": null, "amount": "500000.00" },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "quantity": null, "amount": "1000000.00" },
+          { "code": "overtime", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": "10.0000", "amount": "350000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "485000.00" }
+        ],
+        "taxable": { "regular": "4850000.00", "irregular": "0.00" },
+        "netPay": "4365000.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "proration-touches-lines-never-bases",
+      "source": "BR-PAY-013, BR-PAY-027; A-190 — 20/30 prorates the proratable line (rounded half-up at the line unit) while upah sebulan stays the unprorated 3.6M",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3100000.00", "proratable": true },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "amount": "500000.00", "proratable": false }
+        ],
+        "overtime": null,
+        "proration": { "basis": "calendar_days", "daysInPeriod": 30, "daysPayable": 20, "fixedDailyDivisor": null },
+        "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3600000.00", "totalWage": "3600000.00", "overtimeHourlyBasis": null, "prorationFactor": "0.666667" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "2066700.00" },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "quantity": null, "amount": "500000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "257000.00" }
+        ],
+        "taxable": { "regular": "2566700.00", "irregular": "0.00" },
+        "netPay": "2309700.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "employer-premiums-reach-the-tax-base",
+      "source": "BR-PAY-026 — employer_cost lines classified regular join taxable assembly (bruto 16.16M prices at the 20% band); the non_taxable JHT/JP employer parts and every deduction line do not; net may go negative and that is correct (§9)",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "8000000.00", "proratable": true }
+        ],
+        "overtime": null, "proration": null, "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "8000000.00", "totalWage": "8000000.00", "overtimeHourlyBasis": null, "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "8000000.00" },
+          { "code": "bpjs_kesehatan_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "800000.00" },
+          { "code": "bpjs_kesehatan_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "1600000.00" },
+          { "code": "bpjs_jht_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "2400000.00" },
+          { "code": "bpjs_jht_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "3200000.00" },
+          { "code": "bpjs_jp_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "2500000.00" },
+          { "code": "bpjs_jp_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "3000000.00" },
+          { "code": "bpjs_jkk_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "160000.00" },
+          { "code": "bpjs_jkm_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "6400000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "3232000.00" }
+        ],
+        "taxable": { "regular": "16160000.00", "irregular": "0.00" },
+        "netPay": "-932000.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "grossup-pair-foots-to-the-full-salary",
+      "source": "BR-TAX-010 through the pipeline — the allowance earning and the withholding deduction are equal, so net pay equals the salary itself",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "8000000.00", "proratable": true }
+        ],
+        "overtime": null, "proration": null, "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross_up", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "8000000.00", "totalWage": "8000000.00", "overtimeHourlyBasis": null, "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "8000000.00" },
+          { "code": "tunjangan_pajak", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "889000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "889000.00" }
+        ],
+        "taxable": { "regular": "8889000.00", "irregular": "0.00" },
+        "netPay": "8000000.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "thr-full-entitlement",
+      "source": "BR-PAY-015, BR-BPJS-010 — twelve months of service pays one full upah sebulan as non_wage/irregular; the enabled BPJS programs charge nothing on a THR run",
+      "input": {
+        "runType": "thr", "paymentDate": "2026-03-20", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3000000.00", "proratable": true },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "amount": "500000.00", "proratable": false }
+        ],
+        "overtime": null, "proration": null,
+        "thr": { "serviceMonths": 12 },
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": "5200000.00",
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3500000.00", "totalWage": "3500000.00", "overtimeHourlyBasis": null, "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "thr", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "irregular", "quantity": null, "amount": "3500000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "350000.00" }
+        ],
+        "taxable": { "regular": "0.00", "irregular": "3500000.00" },
+        "netPay": "3150000.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "thr-prorated-below-twelve-months",
+      "source": "BR-PAY-015 — seven months prorates 7/12 × upah sebulan, rounded at the line unit",
+      "input": {
+        "runType": "thr", "paymentDate": "2026-03-20", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3000000.00", "proratable": true },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "amount": "500000.00", "proratable": false }
+        ],
+        "overtime": null, "proration": null,
+        "thr": { "serviceMonths": 7 },
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3500000.00", "totalWage": "3500000.00", "overtimeHourlyBasis": null, "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "thr", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "irregular", "quantity": null, "amount": "2041700.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "204000.00" }
+        ],
+        "taxable": { "regular": "0.00", "irregular": "2041700.00" },
+        "netPay": "1837700.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "thr-below-one-month-not-eligible",
+      "source": "BR-PAY-015 — under one month of service earns nothing: no line, a warning, a zero payslip",
+      "input": {
+        "runType": "thr", "paymentDate": "2026-03-20", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3000000.00", "proratable": true }
+        ],
+        "overtime": null, "proration": null,
+        "thr": { "serviceMonths": 0 },
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3000000.00", "totalWage": "3000000.00", "overtimeHourlyBasis": null, "prorationFactor": "1.000000" },
+        "lines": [],
+        "taxable": { "regular": "0.00", "irregular": "0.00" },
+        "netPay": "0.00",
+        "warnings": [{ "code": "thr_not_eligible", "details": { "serviceMonths": 0 } }]
+      }
+    },
+    {
+      "id": "final-settlement-composes-annual-and-severance",
+      "source": "BR-TAX-008, BR-TAX-011, BR-PAY-013 — two days of prorated pay, an annual-path refund as a negative deduction, and a severance line priced on the final bands outside both",
+      "input": {
+        "runType": "final_settlement", "paymentDate": "2026-06-30", "taxMonth": "2026-06",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "8000000.00", "proratable": true },
+          { "code": "severance", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "final", "amount": "150000000.00", "proratable": false }
+        ],
+        "overtime": null,
+        "proration": { "basis": "calendar_days", "daysInPeriod": 30, "daysPayable": 2, "fixedDailyDivisor": null },
+        "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 6 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": [], "jkkRiskClass": null },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "40000000.00", "taxableRegular": "40000000.00", "taxableIrregular": "0.00", "pph21Withheld": "4000000.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "2000000.00", "jp": "1000000.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "8000000.00", "totalWage": "8000000.00", "overtimeHourlyBasis": null, "prorationFactor": "0.066667" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "533300.00" },
+          { "code": "severance", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "final", "quantity": null, "amount": "150000000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "-4000000.00" },
+          { "code": "pph21_final", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "20000000.00" }
+        ],
+        "taxable": { "regular": "533300.00", "irregular": "0.00" },
+        "netPay": "134533300.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "bpjs-reads-the-unprorated-wage",
+      "source": "BR-PAY-027 — half a month of pay, a full month of contributions: stage 4 reads the stage-1 unprorated upah sebulan, never proration's output. A prorated base would halve every contribution and imply lapsed coverage",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "8000000.00", "proratable": true }
+        ],
+        "overtime": null,
+        "proration": { "basis": "calendar_days", "daysInPeriod": 30, "daysPayable": 15, "fixedDailyDivisor": null },
+        "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "8000000.00", "totalWage": "8000000.00", "overtimeHourlyBasis": null, "prorationFactor": "0.500000" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "4000000.00" },
+          { "code": "bpjs_kesehatan_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "800000.00" },
+          { "code": "bpjs_kesehatan_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "1600000.00" },
+          { "code": "bpjs_jht_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "2400000.00" },
+          { "code": "bpjs_jht_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "3200000.00" },
+          { "code": "bpjs_jp_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "2500000.00" },
+          { "code": "bpjs_jp_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "3000000.00" },
+          { "code": "bpjs_jkk_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "160000.00" },
+          { "code": "bpjs_jkm_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "6400000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "2432000.00" }
+        ],
+        "taxable": { "regular": "12160000.00", "irregular": "0.00" },
+        "netPay": "-4132000.00",
+        "warnings": []
+      }
+    },
+    {
+      "id": "full-composition-golden",
+      "source": "ADR-0012 — every stage live in one call: bases, the floored overtime basis, all eight BPJS lines over the unprorated wage, employer premiums into the 20% band, net footing over rounded lines",
+      "input": {
+        "runType": "regular", "paymentDate": "2026-03-25", "taxMonth": "2026-03",
+        "components": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "amount": "3000000.00", "proratable": true },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "amount": "500000.00", "proratable": false },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "amount": "4000000.00", "proratable": false }
+        ],
+        "overtime": { "multiplierHours": "10.0000" }, "proration": null, "thr": null,
+        "employee": { "employeeId": "e-1", "birthDate": "1990-06-15", "additionalDependents": 0, "excludedPrograms": [], "ptkpStatus": "TK/0", "terCategory": "a", "hasNpwp": true, "taxMethod": "gross", "monthsEmployedInYear": 12 },
+        "company": { "bpjsRegistered": true, "enabledPrograms": ["kesehatan", "jht", "jp", "jkk", "jkm"], "jkkRiskClass": "ii" },
+        "wageFloor": null,
+        "bpjsMtd": [], "taxMtd": { "bruto": "0.00", "pph21Withheld": "0.00" },
+        "ytd": { "gross": "0.00", "taxableRegular": "0.00", "taxableIrregular": "0.00", "pph21Withheld": "0.00", "finalIncome": "0.00", "pph21Final": "0.00" },
+        "annualDeductibleContributions": { "jht": "0.00", "jp": "0.00" }
+      },
+      "expected": {
+        "bases": { "upahSebulan": "3500000.00", "totalWage": "7500000.00", "overtimeHourlyBasis": "37500.00", "prorationFactor": "1.000000" },
+        "lines": [
+          { "code": "basic", "kind": "earning", "wageCategory": "basic", "incomeClass": "regular", "quantity": null, "amount": "3000000.00" },
+          { "code": "transport", "kind": "earning", "wageCategory": "fixed_allowance", "incomeClass": "regular", "quantity": null, "amount": "500000.00" },
+          { "code": "performance", "kind": "earning", "wageCategory": "variable_allowance", "incomeClass": "regular", "quantity": null, "amount": "4000000.00" },
+          { "code": "overtime", "kind": "earning", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": "10.0000", "amount": "375000.00" },
+          { "code": "bpjs_kesehatan_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "350000.00" },
+          { "code": "bpjs_kesehatan_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "700000.00" },
+          { "code": "bpjs_jht_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "1050000.00" },
+          { "code": "bpjs_jht_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "1400000.00" },
+          { "code": "bpjs_jp_ee", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "1750000.00" },
+          { "code": "bpjs_jp_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "2100000.00" },
+          { "code": "bpjs_jkk_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "70000.00" },
+          { "code": "bpjs_jkm_er", "kind": "employer_cost", "wageCategory": "non_wage", "incomeClass": "regular", "quantity": null, "amount": "2800000.00" },
+          { "code": "pph21", "kind": "deduction", "wageCategory": "non_wage", "incomeClass": "non_taxable", "quantity": null, "amount": "2289000.00" }
+        ],
+        "taxable": { "regular": "11445000.00", "irregular": "0.00" },
+        "netPay": "2436000.00",
+        "warnings": []
+      }
+    }
+  ]
+}
