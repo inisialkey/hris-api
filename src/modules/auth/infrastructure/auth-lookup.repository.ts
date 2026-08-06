@@ -2,9 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { ConnectionProvider } from '../../../database/connection.provider';
-import { tenants, users } from '../../../database/schema';
+import { authTokens, sessions, tenants, users } from '../../../database/schema';
 import { UnitOfWork } from '../../../database/unit-of-work';
-import type { AuthLookupRepositoryPort, CandidateUser, TenantSummary } from '../domain/auth.ports';
+import type {
+  AuthLookupRepositoryPort,
+  AuthTokenRecord,
+  CandidateUser,
+  SessionRecord,
+  TenantSummary,
+} from '../domain/auth.ports';
 
 /**
  * The pre-tenant lookup path (authentication.md §4, multi-tenancy §4).
@@ -48,6 +54,56 @@ export class AuthLookupRepository implements AuthLookupRepositoryPort {
         .where(and(eq(users.email, email), isNull(users.deletedAt)));
 
       return rows;
+    });
+  }
+
+  /**
+   * The refresh lookup (authentication.md §4): a session by its current hash,
+   * before any tenant is proven. The unique index makes this at most one row.
+   */
+  async findSessionByRefreshHash(refreshTokenHash: string): Promise<SessionRecord | null> {
+    return this.uow.runWithoutTenant(async () => {
+      const db = this.connection.handle();
+      await db.execute(sql`SET LOCAL ROLE hris_auth`);
+
+      const rows = await db
+        .select({
+          id: sessions.id,
+          tenantId: sessions.tenantId,
+          userId: sessions.userId,
+          deviceId: sessions.deviceId,
+          trustedDevice: sessions.trustedDevice,
+          lastUsedAt: sessions.lastUsedAt,
+          expiresAt: sessions.expiresAt,
+          revokedAt: sessions.revokedAt,
+          revokedReason: sessions.revokedReason,
+        })
+        .from(sessions)
+        .where(eq(sessions.refreshTokenHash, refreshTokenHash));
+
+      return rows[0] ?? null;
+    });
+  }
+
+  /** Reset/invite consumption lookup (§4) — same pre-tenant path, same role. */
+  async findAuthTokenByHash(tokenHash: string): Promise<AuthTokenRecord | null> {
+    return this.uow.runWithoutTenant(async () => {
+      const db = this.connection.handle();
+      await db.execute(sql`SET LOCAL ROLE hris_auth`);
+
+      const rows = await db
+        .select({
+          id: authTokens.id,
+          tenantId: authTokens.tenantId,
+          userId: authTokens.userId,
+          purpose: authTokens.purpose,
+          expiresAt: authTokens.expiresAt,
+          usedAt: authTokens.usedAt,
+        })
+        .from(authTokens)
+        .where(eq(authTokens.tokenHash, tokenHash));
+
+      return rows[0] ?? null;
     });
   }
 

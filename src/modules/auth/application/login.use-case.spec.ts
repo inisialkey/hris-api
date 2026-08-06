@@ -1,5 +1,11 @@
 import { LoginUseCase, type LoginCommand } from './login.use-case';
-import type { CandidateUser, TenantSummary } from '../domain/auth.ports';
+import type {
+  CandidateUser,
+  DeviceRecord,
+  NewDevice,
+  NewSession,
+  TenantSummary,
+} from '../domain/auth.ports';
 
 /**
  * Hand-written in-memory fakes, no DI container, no database
@@ -7,10 +13,9 @@ import type { CandidateUser, TenantSummary } from '../domain/auth.ports';
  * and never a message string — a message is not a contract, and tests that read
  * them break on a typo fix and pass through a semantic change.
  *
- * The scenarios are authentication.md §14's, restricted to the ones the walking
- * skeleton implements. Device limits, refresh rotation and reset tokens are not
- * here because they are not built; §14's rows for them stay open rather than
- * being answered by a test of something else.
+ * The scenarios are authentication.md §14's for UC-AUTH-001, including the
+ * BR-AUTH-007 device-limit ladder. Refresh rotation lives in
+ * `refresh.use-case.spec.ts`; reset tokens in `password.use-case.spec.ts`.
  */
 describe('LoginUseCase', () => {
   const password = 'skeleton-password-1';
@@ -20,6 +25,12 @@ describe('LoginUseCase', () => {
   let failures: string[];
   let dummyVerifies: number;
   let lockedFor: number | null;
+  let devices: (DeviceRecord & { revokedReason?: string })[];
+  let createdDevices: NewDevice[];
+  let touched: string[];
+  let createdSessions: NewSession[];
+  let sessionsRevokedForDevice: string[];
+  let events: { name: string; payload: Record<string, unknown> }[];
 
   function build(): LoginUseCase {
     const lookup = {
@@ -27,6 +38,8 @@ describe('LoginUseCase', () => {
         Promise.resolve(users.filter((u) => u.email === email)),
       findTenants: (ids: readonly string[]) =>
         Promise.resolve(tenants.filter((t) => ids.includes(t.id))),
+      findSessionByRefreshHash: () => Promise.resolve(null),
+      findAuthTokenByHash: () => Promise.resolve(null),
     };
 
     const passwords = {
@@ -56,16 +69,72 @@ describe('LoginUseCase', () => {
     };
 
     const sessions = {
-      create: () => Promise.resolve('session-id'),
+      create: (session: NewSession) => {
+        createdSessions.push(session);
+        return Promise.resolve('session-id');
+      },
       stampLastLogin: () => Promise.resolve(),
+      findById: () => Promise.resolve(null),
+      rotate: () => Promise.resolve(),
+      revoke: () => Promise.resolve(true),
+      revokeAllForUser: () => Promise.resolve([]),
+      revokeForDevice: (deviceId: string) => {
+        sessionsRevokedForDevice.push(deviceId);
+        return Promise.resolve(['old-session']);
+      },
+      listForUser: () => Promise.resolve({ rows: [], total: 0 }),
     };
+
+    const deviceRepo = {
+      findByInstallId: (installId: string) =>
+        Promise.resolve(devices.find((d) => d.installId === installId) ?? null),
+      findById: (id: string) => Promise.resolve(devices.find((d) => d.id === id) ?? null),
+      countActiveForUser: (userId: string) =>
+        Promise.resolve(devices.filter((d) => d.userId === userId && d.status === 'active').length),
+      create: (device: NewDevice) => {
+        createdDevices.push(device);
+        return Promise.resolve('new-device-id');
+      },
+      touch: (deviceId: string) => {
+        touched.push(deviceId);
+        return Promise.resolve();
+      },
+      updateFcmToken: () => Promise.resolve(),
+      revoke: (deviceId: string, reason: 'replaced' | 'user' | 'admin') => {
+        const device = devices.find((d) => d.id === deviceId);
+        if (device) {
+          device.status = 'revoked';
+          device.revokedReason = reason;
+        }
+        return Promise.resolve(true);
+      },
+      listForUser: () => Promise.resolve({ rows: [], total: 0 }),
+    };
+
+    const outbox = {
+      emit: (event: { name: string; payload: Record<string, unknown> }) => {
+        events.push({ name: event.name, payload: event.payload });
+        return Promise.resolve();
+      },
+    };
+
     const tx = { runInTenant: <T>(_tenantId: string, fn: () => Promise<T>) => fn() };
     const clock = { now: () => new Date('2026-08-05T00:00:00Z') };
 
     // No casts: the fakes satisfy the ports structurally, which is the point of
     // the ports being interfaces rather than classes. A cast here would hide the
     // day a port gains a method and this file stops covering it.
-    return new LoginUseCase(lookup, passwords, attempts, tokens, sessions, tx, clock);
+    return new LoginUseCase(
+      lookup,
+      passwords,
+      attempts,
+      tokens,
+      sessions,
+      deviceRepo,
+      outbox,
+      tx,
+      clock,
+    );
   }
 
   function command(over: Partial<LoginCommand> = {}): LoginCommand {
@@ -78,10 +147,25 @@ describe('LoginUseCase', () => {
     };
   }
 
+  const mobileDevice = {
+    installId: 'install-1',
+    platform: 'android' as const,
+    model: 'Pixel 8',
+    osVersion: '15',
+    appVersion: '1.0.0',
+    fcmToken: 'fcm-1',
+  };
+
   beforeEach(() => {
     failures = [];
     dummyVerifies = 0;
     lockedFor = null;
+    devices = [];
+    createdDevices = [];
+    touched = [];
+    createdSessions = [];
+    sessionsRevokedForDevice = [];
+    events = [];
     tenants = [
       { id: 't1', name: 'Tenant One', status: 'active' },
       { id: 't2', name: 'Tenant Two', status: 'active' },
@@ -191,5 +275,142 @@ describe('LoginUseCase', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('AUTH_INVALID_CREDENTIALS');
+  });
+
+  it('web expiry: 12 hours unremembered, 30 days remembered (ADR-0004)', async () => {
+    await build().execute(command());
+    await build().execute(command({ rememberDevice: true }));
+
+    expect(createdSessions[0]!.expiresAt).toEqual(new Date('2026-08-05T12:00:00Z'));
+    expect(createdSessions[1]!.expiresAt).toEqual(new Date('2026-09-04T00:00:00Z'));
+    expect(createdSessions[0]!.deviceId).toBeUndefined();
+  });
+
+  it('mobile login registers the device, binds the session, caps at 90 days', async () => {
+    const result = await build().execute(command({ device: mobileDevice }));
+
+    expect(result.ok).toBe(true);
+    expect(createdDevices).toHaveLength(1);
+    expect(createdDevices[0]!.installId).toBe('install-1');
+    expect(createdSessions[0]!.deviceId).toBe('new-device-id');
+    expect(createdSessions[0]!.expiresAt).toEqual(new Date('2026-11-03T00:00:00Z'));
+  });
+
+  it('a known active install is touched and reused, never duplicated', async () => {
+    devices = [
+      {
+        id: 'd1',
+        userId: 'u1',
+        installId: 'install-1',
+        platform: 'android',
+        fcmToken: 'fcm-0',
+        status: 'active',
+      },
+    ];
+
+    const result = await build().execute(command({ device: mobileDevice }));
+
+    expect(result.ok).toBe(true);
+    expect(createdDevices).toHaveLength(0);
+    expect(touched).toEqual(['d1']);
+    expect(createdSessions[0]!.deviceId).toBe('d1');
+  });
+
+  it('BR-AUTH-014 — a revoked install is refused terminally', async () => {
+    devices = [
+      {
+        id: 'd1',
+        userId: 'u1',
+        installId: 'install-1',
+        platform: 'android',
+        fcmToken: null,
+        status: 'revoked',
+      },
+    ];
+
+    const result = await build().execute(command({ device: mobileDevice }));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('AUTH_DEVICE_REVOKED');
+    expect(createdSessions).toHaveLength(0);
+  });
+
+  it('BR-AUTH-007 — the device limit refuses a second install with the policy in details', async () => {
+    devices = [
+      {
+        id: 'd1',
+        userId: 'u1',
+        installId: 'other-install',
+        platform: 'android',
+        fcmToken: null,
+        status: 'active',
+      },
+    ];
+
+    const result = await build().execute(
+      command({ device: { ...mobileDevice, installId: 'install-2' } }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('AUTH_DEVICE_LIMIT_REACHED');
+    expect(result.error.details).toEqual({ maxDevices: 1, policy: 'self_service' });
+  });
+
+  it('BR-AUTH-007 — self-service replacement revokes the old device and its sessions atomically', async () => {
+    devices = [
+      {
+        id: 'd1',
+        userId: 'u1',
+        installId: 'other-install',
+        platform: 'android',
+        fcmToken: 'fcm-old',
+        status: 'active',
+      },
+    ];
+
+    const result = await build().execute(
+      command({ device: { ...mobileDevice, installId: 'install-2' }, replaceDeviceId: 'd1' }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(devices[0]!.status).toBe('revoked');
+    expect(devices[0]!.revokedReason).toBe('replaced');
+    expect(sessionsRevokedForDevice).toEqual(['d1']);
+    expect(createdDevices).toHaveLength(1);
+    expect(events.map((e) => e.name)).toEqual(['auth.session.revoked', 'auth.device.revoked']);
+  });
+
+  it("BR-AUTH-007 — another user's device id is a plain miss, not a hint", async () => {
+    devices = [
+      {
+        id: 'd1',
+        userId: 'u1',
+        installId: 'other-install',
+        platform: 'android',
+        fcmToken: null,
+        status: 'active',
+      },
+      {
+        id: 'd-foreign',
+        userId: 'u-other',
+        installId: 'foreign-install',
+        platform: 'ios',
+        fcmToken: null,
+        status: 'active',
+      },
+    ];
+
+    const result = await build().execute(
+      command({
+        device: { ...mobileDevice, installId: 'install-2' },
+        replaceDeviceId: 'd-foreign',
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('SYS_NOT_FOUND');
   });
 });
