@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "migrate": "node --env-file-if-exists=.env --import tsx src/database/migrate.ts",
+    "sync:definitions": "node --env-file-if-exists=.env --import tsx src/database/sync-definitions.ts",
     "seed:dev": "node --env-file-if-exists=.env --import tsx src/database/seed-dev.ts",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
