@@ -1,0 +1,62 @@
+{
+  "engine": "overtime/occurrence-pricing",
+  "rateSet": "PENDING — the verified statutory rate set, entered by a human against current regulation",
+  "_readme": [
+    "Statutory vectors (ADR-0018 §3): real published rates, real expected figures, verified",
+    "by a human against current Indonesian regulation. None is verified yet, so every entry",
+    "is status pending-verification with null input and expected: an assistant never types a",
+    "regulatory number — not a factor, not a bound, not an expected figure (ai-development-guide §5).",
+    "This quarantined list IS track 3's task list (implementation-roadmap §3): the statutory",
+    "advisor fills input and expected from the regulation's own worked figures, cites the exact",
+    "article in source, flips status to verified, and records the verification in the same",
+    "commit. The runner refuses a verified entry until the statutory rate set is wired, so",
+    "flipping a status without doing the work fails loudly rather than passing vacuously.",
+    "The pending count is printed by CI and blocks release promotion for the calculators the",
+    "release exposes (G20, ADR-0018 §5). It never blocks a merge.",
+    "⚠️ VERIFY: confirm against current Indonesian regulation before implementation."
+  ],
+  "vectors": [
+    {
+      "id": "working-day-first-and-subsequent-hours",
+      "source": "overtime.md §4.5 worked example 1; §4.2 tiers ⚠️ VERIFY — working-day first-hour and subsequent-hour factors, boundary at one absolute hour. To be confirmed against the governing regulation (PP 35/2021 family)",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "rest-day-full-walk-eight-hour-arrangement",
+      "source": "overtime.md §4.5 worked example 2; §4.2 tiers and BR-OVT-010 ⚠️ VERIFY — rest-day factors with the tier boundary at the day's normal hours H. To be confirmed against the governing regulation",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "public-holiday-on-the-short-friday",
+      "source": "overtime.md §4.5 worked example 3; BR-OVT-010 ⚠️ VERIFY — the short working day of a 6-day arrangement prices with its own H, not a flat constant. To be confirmed against the governing regulation",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "rest-day-span-shorter-than-h",
+      "source": "overtime.md §14 row 1; §4.2 tiers ⚠️ VERIFY — a rest-day span entirely inside the first tier at the statutory rest-day factor",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "working-day-span-under-one-hour",
+      "source": "overtime.md §14 row 1; §4.2 tiers ⚠️ VERIFY — a working-day span entirely inside the first tier at the statutory first-hour factor",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "span-crossing-midnight",
+      "source": "overtime.md §14 row 1, §9 — a 22:00–02:00 span prices on the start date's day class throughout, at the statutory factors ⚠️ VERIFY",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    }
+  ]
+}

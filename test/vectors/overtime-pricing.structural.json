@@ -1,0 +1,132 @@
+{
+  "engine": "overtime/occurrence-pricing",
+  "rateSet": "structural-fiction-v1",
+  "_readme": [
+    "Structural vectors (ADR-0018 §3): rate-independent logic only, computed against the",
+    "deliberately fictional rate set in structural-fiction-v1.ts — every factor is 2.00,",
+    "so nothing here is or resembles Indonesian regulation. Because the factor is uniform,",
+    "the total cannot distinguish a wrong tier split from a right one: the `tiers` trace is",
+    "the assertion that matters in every vector.",
+    "A failing vector is a code defect until a human re-verifies the vector and records why",
+    "it changed; a vector is never edited to make a test pass (testing-strategy §6.1).",
+    "Input fields mirror OvertimePricingInput minus `rules` (injected by the runner from the",
+    "declared rateSet). Minutes are integers; H = scheduledStandardMinutes, falling back to",
+    "fallbackStandardDayMinutes when the schedule carries zero (BR-OVT-010)."
+  ],
+  "vectors": [
+    {
+      "id": "work-day-two-tier-split",
+      "source": "overtime.md §4.5 worked example 1 (shape) — first hour and the rest split at the absolute one-hour bound; payable clamps to the 155-minute actual",
+      "input": { "dayClass": "work_day", "plannedMinutes": 180, "actualMinutes": 155, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 155, "tiers": [ { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 95 } ], "multiplierHours": "5.1667", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "rest-day-full-walk",
+      "source": "overtime.md §4.5 worked example 2 (shape) — H = 480 from the schedule; 600 payable minutes walk [0,H), [H,H+1), [H+1,∞)",
+      "input": { "dayClass": "rest_day", "plannedMinutes": 600, "actualMinutes": 600, "acknowledged": true, "scheduledStandardMinutes": 480, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 480, "payableMinutes": 600, "tiers": [ { "factor": "2.00", "minutes": 480 }, { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 60 } ], "multiplierHours": "20.0000", "mealEntitled": true, "toilDays": null }
+    },
+    {
+      "id": "rest-day-short-friday",
+      "source": "overtime.md §4.5 worked example 3 (shape), BR-OVT-010 — H = 300 from standardMinutes; the split pins the short day. A flat H = 420 would slice [420, 60, 0], which the tiers trace refutes",
+      "input": { "dayClass": "rest_day", "plannedMinutes": 480, "actualMinutes": 480, "acknowledged": true, "scheduledStandardMinutes": 300, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 300, "payableMinutes": 480, "tiers": [ { "factor": "2.00", "minutes": 300 }, { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 120 } ], "multiplierHours": "16.0000", "mealEntitled": true, "toilDays": null }
+    },
+    {
+      "id": "rest-day-h-fallback",
+      "source": "BR-OVT-010 — a genuine rest day schedules zero standard minutes, so H falls back to overtime.standard_daily_hours × 60",
+      "input": { "dayClass": "rest_day", "plannedMinutes": 480, "actualMinutes": 480, "acknowledged": true, "scheduledStandardMinutes": 0, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 480, "tiers": [ { "factor": "2.00", "minutes": 420 }, { "factor": "2.00", "minutes": 60 } ], "multiplierHours": "16.0000", "mealEntitled": true, "toilDays": null }
+    },
+    {
+      "id": "work-day-under-one-hour",
+      "source": "overtime.md §14 row 1 — a span entirely inside the first tier produces a single slice",
+      "input": { "dayClass": "work_day", "plannedMinutes": 45, "actualMinutes": 45, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 45, "tiers": [ { "factor": "2.00", "minutes": 45 } ], "multiplierHours": "1.5000", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "work-day-boundary-exact-hour",
+      "source": "BR-OVT-009, ADR-0018 §3 — tier boundaries land on the correct side: exactly 60 payable minutes fill [0,1) and leave [1,∞) empty; the empty tier is omitted from the trace",
+      "input": { "dayClass": "work_day", "plannedMinutes": 60, "actualMinutes": 60, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 60, "tiers": [ { "factor": "2.00", "minutes": 60 } ], "multiplierHours": "2.0000", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "work-day-boundary-hour-plus-one",
+      "source": "BR-OVT-009, ADR-0018 §3 — the 61st minute belongs to the second tier, not the first",
+      "input": { "dayClass": "work_day", "plannedMinutes": 61, "actualMinutes": 61, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 61, "tiers": [ { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 1 } ], "multiplierHours": "2.0333", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "rest-day-shorter-than-h",
+      "source": "overtime.md §14 row 1 — a rest-day span shorter than H stays entirely in tier 0",
+      "input": { "dayClass": "rest_day", "plannedMinutes": 120, "actualMinutes": 120, "acknowledged": true, "scheduledStandardMinutes": 480, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 480, "payableMinutes": 120, "tiers": [ { "factor": "2.00", "minutes": 120 } ], "multiplierHours": "4.0000", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "rest-day-boundary-exactly-h",
+      "source": "BR-OVT-010, ADR-0018 §3 — exactly H payable minutes fill [0,H) and leave [H,H+1) empty",
+      "input": { "dayClass": "rest_day", "plannedMinutes": 480, "actualMinutes": 480, "acknowledged": true, "scheduledStandardMinutes": 480, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 480, "payableMinutes": 480, "tiers": [ { "factor": "2.00", "minutes": 480 } ], "multiplierHours": "16.0000", "mealEntitled": true, "toilDays": null }
+    },
+    {
+      "id": "rest-day-into-top-tier",
+      "source": "BR-OVT-010, ADR-0018 §3 — minute H+61 is the first minute of the unbounded top tier",
+      "input": { "dayClass": "rest_day", "plannedMinutes": 541, "actualMinutes": 541, "acknowledged": true, "scheduledStandardMinutes": 480, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 480, "payableMinutes": 541, "tiers": [ { "factor": "2.00", "minutes": 480 }, { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 1 } ], "multiplierHours": "18.0333", "mealEntitled": true, "toilDays": null }
+    },
+    {
+      "id": "clamp-worked-more-than-ordered",
+      "source": "BR-OVT-008 — approved 180, worked 300: paid to the approval; the excess is the reconcile report's business",
+      "input": { "dayClass": "work_day", "plannedMinutes": 180, "actualMinutes": 300, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 180, "tiers": [ { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 120 } ], "multiplierHours": "6.0000", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "clamp-worked-less-rounds-up",
+      "source": "BR-OVT-008; A-187 — approved 180, worked 20: paid to the evidence. 40/60 = 0.66666… rounds up to 0.6667 at the 4th decimal, half-up",
+      "input": { "dayClass": "work_day", "plannedMinutes": 180, "actualMinutes": 20, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 20, "tiers": [ { "factor": "2.00", "minutes": 20 } ], "multiplierHours": "0.6667", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "rounding-third-truncates",
+      "source": "A-187, ADR-0018 §3 (rounding direction and unit) — 20/60 = 0.33333… rounds down to 0.3333 at the 4th decimal, half-up",
+      "input": { "dayClass": "work_day", "plannedMinutes": 60, "actualMinutes": 10, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 10, "tiers": [ { "factor": "2.00", "minutes": 10 } ], "multiplierHours": "0.3333", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "zero-actual-is-a-valid-outcome",
+      "source": "BR-OVT-008 — the evidence says nobody worked: actualized at zero, nothing owed, no meal, no ledger write",
+      "input": { "dayClass": "work_day", "plannedMinutes": 180, "actualMinutes": 0, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 0, "tiers": [], "multiplierHours": "0.0000", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "unacknowledged-order-actualizes-to-zero",
+      "source": "BR-OVT-013 — an on-behalf order without the employee's acknowledgment is not silently paid and not silently dropped: zero, with the reason reported by the job",
+      "input": { "dayClass": "work_day", "plannedMinutes": 180, "actualMinutes": 180, "acknowledged": false, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 0, "tiers": [], "multiplierHours": "0.0000", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "meal-boundary-exact-threshold",
+      "source": "BR-OVT-012 — mealEntitled derives from actual payable minutes; exactly the threshold qualifies",
+      "input": { "dayClass": "work_day", "plannedMinutes": 240, "actualMinutes": 240, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 240, "tiers": [ { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 180 } ], "multiplierHours": "8.0000", "mealEntitled": true, "toilDays": null }
+    },
+    {
+      "id": "meal-boundary-one-minute-under",
+      "source": "BR-OVT-012 — one minute under the threshold does not qualify",
+      "input": { "dayClass": "work_day", "plannedMinutes": 240, "actualMinutes": 239, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "pay" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 239, "tiers": [ { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 179 } ], "multiplierHours": "7.9667", "mealEntitled": false, "toilDays": null }
+    },
+    {
+      "id": "toil-conversion-exact",
+      "source": "BR-OVT-011 — the credit is multiplier-hours, not raw hours: 20.0000 mh × 60 / H=480 = 2.50 days",
+      "input": { "dayClass": "rest_day", "plannedMinutes": 600, "actualMinutes": 600, "acknowledged": true, "scheduledStandardMinutes": 480, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "toil" },
+      "expected": { "standardDayMinutes": 480, "payableMinutes": 600, "tiers": [ { "factor": "2.00", "minutes": 480 }, { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 60 } ], "multiplierHours": "20.0000", "mealEntitled": true, "toilDays": "2.50" }
+    },
+    {
+      "id": "toil-conversion-rounds-from-pinned",
+      "source": "BR-OVT-011; A-187 — days derive from the pinned 4dp figure so the leave ledger reconciles against the occurrence row: 3.3333 mh × 60 / 420 = 0.47618… → 0.48 at 2dp, half-up",
+      "input": { "dayClass": "work_day", "plannedMinutes": 100, "actualMinutes": 100, "acknowledged": true, "scheduledStandardMinutes": 420, "fallbackStandardDayMinutes": 420, "mealThresholdMinutes": 240, "compensation": "toil" },
+      "expected": { "standardDayMinutes": 420, "payableMinutes": 100, "tiers": [ { "factor": "2.00", "minutes": 60 }, { "factor": "2.00", "minutes": 40 } ], "multiplierHours": "3.3333", "mealEntitled": false, "toilDays": "0.48" }
+    }
+  ]
+}
