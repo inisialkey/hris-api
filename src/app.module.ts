@@ -9,6 +9,7 @@ import { RedisModule } from './cache/redis.module';
 import { validateEnv } from './config/env.schema';
 import { DatabaseModule } from './database/database.module';
 import { TransactionInterceptor } from './database/transaction.interceptor';
+import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
 import { AuthzModule, PermissionGuard } from './modules/authz';
 import { HealthModule } from './modules/health/health.module';
@@ -80,6 +81,7 @@ registerErrorStatuses(sharedErrorStatus);
     RedisModule,
     AuthzModule,
     AuthModule,
+    AuditModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,

@@ -54,6 +54,7 @@ const SKELETON_PERMISSIONS = [
   { key: 'auth.device.revoke', module: 'auth', description: 'Revoke any device in tenant' },
   { key: 'auth.user.unlock', module: 'auth', description: 'Clear a locked account' },
   { key: 'auth.user.reset', module: 'auth', description: 'Trigger a password reset for a user' },
+  { key: 'audit.log.read', module: 'audit', description: 'Query the audit log and verify anchors' },
 ];
 
 async function main(): Promise<void> {
