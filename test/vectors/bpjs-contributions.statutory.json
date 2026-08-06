@@ -1,0 +1,82 @@
+{
+  "engine": "bpjs/monthly-contributions",
+  "rateSet": "PENDING — the verified statutory rate set, entered by a human against current regulation",
+  "_readme": [
+    "Statutory vectors (ADR-0018 §3): real published rates, real expected rupiah, verified by",
+    "a human against current Indonesian regulation. None is verified yet, so every entry is",
+    "status pending-verification with null input and expected: an assistant never types a",
+    "regulatory number (ai-development-guide §5).",
+    "This quarantined list IS track 3's task list. The statutory advisor fills input and",
+    "expected from the regulation's own figures, cites the exact instrument and article in",
+    "source, flips status to verified, and records the verification in the same commit. The",
+    "runner refuses a verified entry until the statutory rate set is wired.",
+    "The pending count is printed by CI and blocks release promotion for the calculators the",
+    "release exposes (G20, ADR-0018 §5). It never blocks a merge.",
+    "⚠️ VERIFY: confirm against current Indonesian regulation before implementation."
+  ],
+  "vectors": [
+    {
+      "id": "employee-employer-split-per-program",
+      "source": "BR-BPJS-002 ⚠️ VERIFY — the employee and employer rate per program (Kesehatan, JHT, JP, JKK by risk class, JKM), against the governing BPJS regulations",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "kesehatan-cap-binds",
+      "source": "BR-BPJS-009 ⚠️ VERIFY — the Kesehatan base cap and a wage above it",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "jp-cap-binds",
+      "source": "BR-BPJS-009 ⚠️ VERIFY — the JP base cap, distinct from Kesehatan's, in the same run",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "wage-floor-lifts-the-base",
+      "source": "BR-BPJS-008 ⚠️ VERIFY — whether the applicable regional minimum wage floors the base, and for which programs",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "jp-age-ceiling",
+      "source": "BR-BPJS-006 ⚠️ VERIFY — the statutory JP age ceiling and the boundary's exact placement relative to the birthday",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "taxable-employer-premiums",
+      "source": "BR-BPJS-011 ⚠️ VERIFY — which employer premiums are taxable income to the employee (Kesehatan, JKK, JKM) and which are not (JHT, JP)",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "deductible-employee-contributions",
+      "source": "BR-BPJS-012 ⚠️ VERIFY — which employee contributions reduce the annual PPh 21 base (JHT, JP) and which do not (Kesehatan, dependent surcharge)",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "dependent-allowance-and-surcharge",
+      "source": "BR-BPJS-013 ⚠️ VERIFY — the free dependent allowance and the per-additional-member percentage of the Kesehatan base",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "contribution-rounding-unit",
+      "source": "BR-BPJS-014 ⚠️ VERIFY — the statutory rounding unit and direction for contribution amounts",
+      "status": "pending-verification",
+      "input": null,
+      "expected": null
+    }
+  ]
+}

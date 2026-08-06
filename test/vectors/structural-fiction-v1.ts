@@ -65,4 +65,63 @@ export const structuralFictionV1 = {
       factor: '2.00',
     },
   ] satisfies OvertimeRateRule[],
+
+  /**
+   * BPJS fiction: rates in 10%-steps no statute has ever used, caps on round
+   * ten-figure numbers, a JP age ceiling of 100, a rounding unit of 1000.
+   * Shape per bpjs.md §4.1/§4.2. Employee rows exist only for the programs
+   * that have a seeded employee component (kesehatan, jht, jp); the JKK
+   * employer row is deliberately rate-less and prices from the risk table
+   * (BR-BPJS-002). Kesehatan is the one floored program here so that
+   * `floor_applies` selection is observable per row.
+   */
+  bpjs: {
+    programRates: [
+      {
+        program: 'kesehatan',
+        payer: 'employee',
+        rate: '0.1000',
+        baseCap: '10000000.00',
+        floorApplies: true,
+      },
+      {
+        program: 'kesehatan',
+        payer: 'employer',
+        rate: '0.2000',
+        baseCap: '10000000.00',
+        floorApplies: true,
+      },
+      { program: 'jht', payer: 'employee', rate: '0.3000', baseCap: null, floorApplies: false },
+      { program: 'jht', payer: 'employer', rate: '0.4000', baseCap: null, floorApplies: false },
+      {
+        program: 'jp',
+        payer: 'employee',
+        rate: '0.5000',
+        baseCap: '5000000.00',
+        floorApplies: false,
+      },
+      {
+        program: 'jp',
+        payer: 'employer',
+        rate: '0.6000',
+        baseCap: '5000000.00',
+        floorApplies: false,
+      },
+      { program: 'jkk', payer: 'employer', rate: null, baseCap: null, floorApplies: false },
+      { program: 'jkm', payer: 'employer', rate: '0.8000', baseCap: null, floorApplies: false },
+    ],
+    jkkRates: [
+      { riskClass: 'i', rate: '0.0100' },
+      { riskClass: 'ii', rate: '0.0200' },
+      { riskClass: 'iii', rate: '0.0300' },
+      { riskClass: 'iv', rate: '0.0400' },
+      { riskClass: 'v', rate: '0.0500' },
+    ],
+    scalars: {
+      jp_max_age_years: '100',
+      kesehatan_free_dependents: '5',
+      kesehatan_extra_dependent_pct: '0.1000',
+      contribution_rounding_unit: '1000',
+    },
+  },
 } as const;
