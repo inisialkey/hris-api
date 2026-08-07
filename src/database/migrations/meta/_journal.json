@@ -85,6 +85,13 @@
       "when": 1786029804657,
       "tag": "0011_create_employee_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786071102109,
+      "tag": "0012_create_approval_tables",
+      "breakpoints": true
     }
   ]
 }

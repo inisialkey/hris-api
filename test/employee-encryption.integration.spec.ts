@@ -56,7 +56,14 @@ describe('employee encryption (ADR-0016)', () => {
 
     registerAuditedTables({ employees: { maskedColumns: ['ptkp_status'] } });
 
-    keyService = new TenantKeyService(connection, provider, { now: () => NOW });
+    // **Wall clock, not the frozen business clock.** `TenantKeyService` writes the
+    // cache expiry from the clock it is given, while the `encryptedText` column
+    // type reads it back through `Date.now()` — it is synchronous and
+    // context-free, which is the whole of ADR-0016 decision 2. Handing this one a
+    // fixed `NOW` made the key expire the moment real time passed it, so the
+    // suite only passed within five minutes of 03:00 UTC. The TTL is machinery,
+    // not a business rule (`tenant-keys.ts` says so).
+    keyService = new TenantKeyService(connection, provider, { now: () => new Date() });
     repository = new EmployeeRepository(
       connection,
       new AuditService(new AuditRepository(connection)),

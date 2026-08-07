@@ -7,5 +7,6 @@ export * from './audit.schema';
 export * from './settings.schema';
 export * from './organization.schema';
 export * from './employee.schema';
+export * from './approval.schema';
 export * from './sysadmin.schema';
 export * from './scratch.schema';

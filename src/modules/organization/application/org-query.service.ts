@@ -54,6 +54,11 @@ export class OrgQueryService implements OrgQueryPort {
     return placement;
   }
 
+  /** approval-engine §8 — live row, this tenant (RLS supplies the tenant). */
+  async positionExists(positionId: string): Promise<boolean> {
+    return (await this.positions.findById(positionId)) !== null;
+  }
+
   /** One query, keyed result — the grid form. Uncached: a page is a different shape. */
   async placements(employeeIds: string[], asOf: string): Promise<Map<string, Placement | null>> {
     const found = await this.assignments.placements(employeeIds, asOf);
