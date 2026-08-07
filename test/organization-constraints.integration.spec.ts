@@ -63,8 +63,10 @@ describe('organization constraints', () => {
         [p1, t1, c1, d1, l1],
       );
       await client.query(
-        `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type)
-         VALUES ($1, $2, $3, 'E-001', 'Sari', '2026-01-01', 'pkwtt')`,
+        `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type,
+          nik, nik_bidx, birth_date, gender, marital_status, ptkp_status)
+         VALUES ($1, $2, $3, 'E-001', 'Sari', '2026-01-01', 'pkwtt',
+                 'v1:x', 'bidx-001', '1990-01-01', 'female', 'single', 'tk_0')`,
         [e1, t1, c1],
       );
     });
@@ -178,8 +180,10 @@ describe('organization constraints', () => {
       const other = uuidv7();
       await withTenant(t1, async (client) => {
         await client.query(
-          `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type)
-           VALUES ($1, $2, $3, 'E-002', 'Budi', '2026-01-01', 'pkwtt')`,
+          `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type,
+          nik, nik_bidx, birth_date, gender, marital_status, ptkp_status)
+           VALUES ($1, $2, $3, 'E-002', 'Budi', '2026-01-01', 'pkwtt',
+                 'v1:x', 'bidx-002', '1990-01-01', 'male', 'single', 'tk_0')`,
           [other, t1, c1],
         );
         await assign(client, { employeeId: other, from: '2026-01-01', to: '2026-06-01' });
@@ -194,8 +198,10 @@ describe('organization constraints', () => {
       const other = uuidv7();
       await withTenant(t1, async (client) => {
         await client.query(
-          `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type)
-           VALUES ($1, $2, $3, 'E-003', 'Dewi', '2026-01-01', 'pkwtt')`,
+          `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type,
+          nik, nik_bidx, birth_date, gender, marital_status, ptkp_status)
+           VALUES ($1, $2, $3, 'E-003', 'Dewi', '2026-01-01', 'pkwtt',
+                 'v1:x', 'bidx-003', '1990-01-01', 'male', 'single', 'tk_0')`,
           [other, t1, c1],
         );
         await assign(client, { employeeId: other, from: '2026-09-01', deleted: true });
@@ -207,8 +213,10 @@ describe('organization constraints', () => {
       const mover = uuidv7();
       await withTenant(t1, (client) =>
         client.query(
-          `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type)
-           VALUES ($1, $2, $3, 'E-004', 'Rama', '2026-01-01', 'pkwtt')`,
+          `INSERT INTO employees (id, tenant_id, company_id, employee_number, full_name, join_date, employment_type,
+          nik, nik_bidx, birth_date, gender, marital_status, ptkp_status)
+           VALUES ($1, $2, $3, 'E-004', 'Rama', '2026-01-01', 'pkwtt',
+                 'v1:x', 'bidx-004', '1990-01-01', 'male', 'single', 'tk_0')`,
           [mover, t1, c1],
         ),
       );

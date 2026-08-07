@@ -11,7 +11,7 @@ import {
 } from '../domain/organization.ports';
 import type { CompanyRow } from '../domain/organization.types';
 import { duplicate } from './field-errors';
-import { companyScope, requireCompanyInScope, requireTenantWide } from './scope';
+import { companyScope, requireCompanyInScope, requireTenantWide } from '../../../shared/data-scope';
 
 export interface CompanyListRow extends CompanyRow {
   branchCount: number;

@@ -6,7 +6,7 @@ import { organizationErrors } from '../domain/organization.errors';
 import { JOB_LEVEL_REPOSITORY, type JobLevelRepositoryPort } from '../domain/organization.ports';
 import type { JobLevelRow } from '../domain/organization.types';
 import { duplicate } from './field-errors';
-import { requireTenantWide } from './scope';
+import { requireTenantWide } from '../../../shared/data-scope';
 
 export interface JobLevelListRow extends JobLevelRow {
   positionCount: number;

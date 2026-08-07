@@ -70,13 +70,32 @@ export interface MoveRequest {
 }
 
 /** UC-ORG-001's answer — everything a consumer needs without joining org tables. */
+/**
+ * A live placement, as `OrgQueryPort` hands it over.
+ *
+ * **The display names are part of the contract and not a convenience**
+ * (added by employee.md's arrival — A-195). As originally written this type
+ * carried ids only, which made both of employee.md §7's placement shapes
+ * unimplementable: the grid renders `{ positionTitle, branchName,
+ * departmentName }` and `/me/profile` renders six names, and neither has a
+ * sanctioned channel to resolve an id into a name — `employee_directory` is
+ * about employees, and joining organization's tables is the ADR-0001 rule 2
+ * violation the port exists to prevent. Resolving them here costs three extra
+ * joins on a query that already made two, over a page of at most a hundred rows.
+ * Additive: every existing consumer reads the same ids it always did.
+ */
 export interface Placement {
   companyId: string;
+  companyName: string;
   branchId: string;
+  branchName: string;
   branchTimezone: string;
   departmentId: string;
+  departmentName: string;
   positionId: string;
+  positionTitle: string;
   jobLevelId: string;
+  jobLevelName: string;
 }
 
 /** One node of UC-ORG-006's flat chart; the client builds the forest from the edges. */

@@ -65,6 +65,9 @@ describe('RefreshUseCase', () => {
 
     const users = {
       findById: () => Promise.resolve(user),
+      findByEmail: () => Promise.resolve(null),
+      create: () => Promise.resolve('u-new'),
+      deactivate: () => Promise.resolve(),
       setPasswordHash: () => Promise.resolve(),
       unlock: () => Promise.resolve(true),
     };

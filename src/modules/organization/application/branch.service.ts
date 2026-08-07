@@ -14,7 +14,7 @@ import {
 } from '../domain/organization.ports';
 import type { BranchRow } from '../domain/organization.types';
 import { duplicate } from './field-errors';
-import { requireCompanyInScope } from './scope';
+import { requireCompanyInScope } from '../../../shared/data-scope';
 
 /** BR-ORG-001. Indonesia has three, and §1 excludes international timezones from V1. */
 export const INDONESIAN_TIMEZONES = ['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura'] as const;

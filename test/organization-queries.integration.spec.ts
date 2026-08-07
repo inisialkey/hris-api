@@ -123,8 +123,10 @@ describe('organization queries', () => {
       ] as const) {
         await raw(
           `INSERT INTO employees
-             (id, tenant_id, company_id, user_id, employee_number, full_name, join_date, employment_type, status)
-           VALUES ($1, $2, $3, $4, $5, $6, '2026-01-01', 'pkwtt', $7)`,
+             (id, tenant_id, company_id, user_id, employee_number, full_name, join_date, employment_type, status,
+              nik, nik_bidx, birth_date, gender, marital_status, ptkp_status)
+           VALUES ($1, $2, $3, $4, $5, $6, '2026-01-01', 'pkwtt', $7,
+                   'v1:x', $5, '1990-01-01', 'female', 'single', 'tk_0')`,
           [id, tenantId, companyId, user, number, name, status],
         );
       }

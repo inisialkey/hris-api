@@ -66,6 +66,17 @@ export const IDENTITY_QUERY = Symbol('IDENTITY_QUERY');
 export interface IdentityQueryPort {
   findUser(userId: string): Promise<{ email: string } | null>;
   findTenant(tenantId: string): Promise<{ id: string; name: string; status: string } | null>;
+  /**
+   * `/auth/me`'s `name` and `employeeId` (§7), read through employee.md's
+   * **published view** rather than its table — ADR-0001 rule 6's third channel,
+   * whose column list is exactly the boundary: no encrypted column, no masked
+   * column, `security_invoker = true` so it runs under the caller's RLS.
+   *
+   * `null` for a user with no employee row — an HR admin who is not an
+   * employee is an ordinary case, and the contract marks `employeeId` optional
+   * for it (A-195).
+   */
+  findEmployeeIdentity(userId: string): Promise<{ employeeId: string; fullName: string } | null>;
 }
 
 /** The successor pair a rotation produced, exactly as the client receives it. */

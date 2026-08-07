@@ -24,7 +24,7 @@ import {
 import type { AssignmentRow, MoveRequest } from '../domain/organization.types';
 import { planCancel, planMove } from '../domain/plan-placement';
 import { mapConstraintViolation } from './field-errors';
-import { requireCompanyInScope } from './scope';
+import { requireCompanyInScope } from '../../../shared/data-scope';
 
 /**
  * UC-ORG-003 and UC-ORG-004 — the only two writes to `org_assignments` that a

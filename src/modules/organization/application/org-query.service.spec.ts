@@ -94,11 +94,16 @@ describe('OrgQueryService', () => {
     holders = { 'FIN-MGR': ['u-mgr'], CFO: ['u-cfo'] };
     placementFor = {
       companyId: 'co-1',
+      companyName: 'Company One',
       branchId: 'br-1',
+      branchName: 'Jakarta',
       branchTimezone: 'Asia/Jakarta',
       departmentId: 'dep-1',
+      departmentName: 'Finance',
       positionId: 'FIN-STAFF',
+      positionTitle: 'Finance Staff',
       jobLevelId: 'lvl-1',
+      jobLevelName: 'Staff',
     };
     cacheReads = 0;
     cacheWrites = [];

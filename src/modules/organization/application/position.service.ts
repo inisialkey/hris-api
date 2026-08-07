@@ -21,7 +21,7 @@ import {
 } from '../domain/organization.ports';
 import type { ChartNode, PositionRow } from '../domain/organization.types';
 import { duplicate } from './field-errors';
-import { companyScope, requireCompanyInScope } from './scope';
+import { companyScope, requireCompanyInScope } from '../../../shared/data-scope';
 
 export interface PositionListRow extends PositionRow {
   holderCount: number;

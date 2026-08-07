@@ -93,6 +93,36 @@ export class OrgQueryService implements OrgQueryPort {
   }
 
   /**
+   * BR-ORG-003's reporting line walked **downwards** — employee.md §13 has named
+   * this a consumed capability ("team inverse") since 2026-08-02 and §4.2 never
+   * wrote the method (A-195). UC-EMP-011's team list is its first caller.
+   *
+   * Two things differ from `directManagers`, both deliberate. It answers in
+   * **employee** ids rather than user ids: the caller renders a roster, and a
+   * direct report who cannot log in is still a direct report — the account
+   * filter exists so the approval engine cannot assign a step to someone unable
+   * to act on it, which is a different question. And it returns the holders of
+   * **every** position reporting directly to any position the caller holds, so
+   * a manager occupying two seats sees both teams as one list.
+   */
+  async directReports(employeeId: string, asOf: string): Promise<string[]> {
+    const placement = await this.assignments.placement(employeeId, asOf);
+    if (!placement) return [];
+
+    const all = await this.positions.listAll(placement.companyId);
+    const held = new Set(
+      all.filter((position) => position.id === placement.positionId).map((p) => p.id),
+    );
+    const reporting = all
+      .filter((position) => position.reportsToPositionId !== null)
+      .filter((position) => held.has(position.reportsToPositionId as string))
+      .map((position) => position.id);
+
+    if (reporting.length === 0) return [];
+    return this.assignments.holderEmployeeIds(reporting, asOf, employeeId);
+  }
+
+  /**
    * BR-ANN-002. The department subtree walk happens here rather than in the
    * caller because it is this module's tree and this module's depth cap — a flat
    * view cannot express ancestry, which is the whole reason the method lives on

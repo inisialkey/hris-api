@@ -2,7 +2,15 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, isNotNull, isNull, ne, or, type SQL } from 'drizzle-orm';
 
 import { ConnectionProvider } from '../../../database/connection.provider';
-import { branches, employees, orgAssignments, positions } from '../../../database/schema';
+import {
+  branches,
+  companies,
+  departments,
+  employeeDirectory,
+  jobLevels,
+  orgAssignments,
+  positions,
+} from '../../../database/schema';
 import { TenantScopedRepository } from '../../../database/tenant-scoped.repository';
 import { CLOCK, type Clock } from '../../../shared/clock.port';
 import { AUDIT_CHANGE_PORT, type AuditChangePort } from '../../audit';
@@ -95,23 +103,50 @@ export class AssignmentRepository
     if (positionIds.length === 0) return [];
 
     const rows = await this.db
-      .selectDistinct({ userId: employees.userId })
+      .selectDistinct({ userId: employeeDirectory.userId })
       .from(orgAssignments)
-      // A-194: joins `employees` directly until employee.md publishes
-      // `employee_directory` (ADR-0001 rule 6).
-      .innerJoin(employees, eq(employees.id, orgAssignments.employeeId))
+      // ADR-0001 rule 6's published view. `security_invoker = true` on it means
+      // this join runs under the caller's RLS, so the tenant predicate is the
+      // same one the base table would have applied.
+      .innerJoin(employeeDirectory, eq(employeeDirectory.employeeId, orgAssignments.employeeId))
       .where(
         and(
           inArray(orgAssignments.positionId, positionIds),
           liveAssignmentAt(asOf),
-          inArray(employees.status, [...EMPLOYED]),
-          isNotNull(employees.userId),
-          isNull(employees.deletedAt),
+          inArray(employeeDirectory.status, [...EMPLOYED]),
+          isNotNull(employeeDirectory.userId),
           excludeEmployeeId ? ne(orgAssignments.employeeId, excludeEmployeeId) : undefined,
         ),
       );
 
     return rows.map((row) => row.userId).filter((id): id is string => id !== null);
+  }
+
+  /** `directReports`' projection: employed holders, account or not (A-195). */
+  async holderEmployeeIds(
+    positionIds: string[],
+    asOf: string,
+    excludeEmployeeId?: string,
+  ): Promise<string[]> {
+    if (positionIds.length === 0) return [];
+
+    const rows = await this.db
+      .selectDistinct({ employeeId: orgAssignments.employeeId })
+      .from(orgAssignments)
+      // ADR-0001 rule 6's published view. `security_invoker = true` on it means
+      // this join runs under the caller's RLS, so the tenant predicate is the
+      // same one the base table would have applied.
+      .innerJoin(employeeDirectory, eq(employeeDirectory.employeeId, orgAssignments.employeeId))
+      .where(
+        and(
+          inArray(orgAssignments.positionId, positionIds),
+          liveAssignmentAt(asOf),
+          inArray(employeeDirectory.status, [...EMPLOYED]),
+          excludeEmployeeId ? ne(orgAssignments.employeeId, excludeEmployeeId) : undefined,
+        ),
+      );
+
+    return rows.map((row) => row.employeeId);
   }
 
   /**
@@ -149,13 +184,12 @@ export class AssignmentRepository
       .selectDistinct({ employeeId: orgAssignments.employeeId })
       .from(orgAssignments)
       .innerJoin(positions, eq(positions.id, orgAssignments.positionId))
-      // A-194: see `holderUserIds`.
-      .innerJoin(employees, eq(employees.id, orgAssignments.employeeId))
+      // The published view again — see `holderUserIds`.
+      .innerJoin(employeeDirectory, eq(employeeDirectory.employeeId, orgAssignments.employeeId))
       .where(
         and(
           liveAssignmentAt(asOf),
-          inArray(employees.status, [...EMPLOYED]),
-          isNull(employees.deletedAt),
+          inArray(employeeDirectory.status, [...EMPLOYED]),
           rules.companyId === null ? undefined : eq(positions.companyId, rules.companyId),
           dimensions.length > 0 ? or(...dimensions) : undefined,
         ),
@@ -219,15 +253,26 @@ export class AssignmentRepository
       .select({
         employeeId: orgAssignments.employeeId,
         companyId: positions.companyId,
+        companyName: companies.name,
         branchId: branches.id,
+        branchName: branches.name,
         branchTimezone: branches.timezone,
         departmentId: positions.departmentId,
+        departmentName: departments.name,
         positionId: positions.id,
+        positionTitle: positions.title,
         jobLevelId: positions.jobLevelId,
+        jobLevelName: jobLevels.name,
       })
       .from(orgAssignments)
       .innerJoin(positions, eq(positions.id, orgAssignments.positionId))
       .innerJoin(branches, eq(branches.id, orgAssignments.branchId))
+      // Three joins added with the display names (A-195). All inner: a position
+      // cannot exist without its department, job level, or company — the FKs say
+      // so — so none of them can turn a placement into no placement.
+      .innerJoin(departments, eq(departments.id, positions.departmentId))
+      .innerJoin(jobLevels, eq(jobLevels.id, positions.jobLevelId))
+      .innerJoin(companies, eq(companies.id, positions.companyId))
       .where(where);
 
     return rows.map(({ employeeId, ...placement }) => ({ employeeId, placement }));

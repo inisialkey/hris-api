@@ -1,23 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { ConnectionProvider } from '../../../database/connection.provider';
-import { employees } from '../../../database/schema';
+import { employeeDirectory } from '../../../database/schema';
 import type { EmployeeLookupPort } from '../domain/organization.ports';
 
 /**
- * A-194 — the temporary binding.
+ * The one read this module makes outside its own tables, through ADR-0001 rule
+ * 6's **published view** rather than the base table.
  *
- * BR-ORG-002 needs two facts about an employee before it will place them: the
- * company a position and branch must agree with, and the join date a placement
- * must not precede. Both belong to `employees`, which employee.md owns and which
- * is spine order 3 — one behind this module.
+ * A placement needs the company it must agree with and the join date it must not
+ * precede; both are `employee_directory` columns, neither is ADR-0016 encrypted
+ * or BR-EMP-003 masked, and `security_invoker = true` means the read runs under
+ * the caller's RLS. Retired the A-194 marker this class carried from 2026-08-06
+ * to 2026-08-06 — the deviation lasted exactly as long as the module that
+ * closed it took to arrive.
  *
- * ADR-0001 rule 6 makes the port the default path, so the port is what this
- * module depends on; only the **binding** is local, and it is deliberately the
- * narrowest possible read (three columns, one row, no joins). When employee.md
- * arrives it exports the same shape from its facade and this class is deleted —
- * one provider line changes, no caller does.
+ * It stays a port rather than becoming an import of employee's facade for the
+ * reason ADR-0001 rule 3 gives: employee already consumes `OrgQueryPort` and
+ * `OrgPlacementPort`, so a facade call back the other way would be a cycle. A
+ * view is a schema object and creates none.
  */
 @Injectable()
 export class EmployeeLookupRepository implements EmployeeLookupPort {
@@ -29,23 +31,21 @@ export class EmployeeLookupRepository implements EmployeeLookupPort {
     const rows = await this.connection
       .handle()
       .select({
-        id: employees.id,
-        companyId: employees.companyId,
-        joinDate: employees.joinDate,
+        id: employeeDirectory.employeeId,
+        companyId: employeeDirectory.companyId,
+        joinDate: employeeDirectory.joinDate,
       })
-      .from(employees)
-      .where(and(eq(employees.id, employeeId), isNull(employees.deletedAt)));
-
+      .from(employeeDirectory)
+      .where(eq(employeeDirectory.employeeId, employeeId));
     return rows[0] ?? null;
   }
 
   async findByUserId(userId: string): Promise<{ id: string; companyId: string } | null> {
     const rows = await this.connection
       .handle()
-      .select({ id: employees.id, companyId: employees.companyId })
-      .from(employees)
-      .where(and(eq(employees.userId, userId), isNull(employees.deletedAt)));
-
+      .select({ id: employeeDirectory.employeeId, companyId: employeeDirectory.companyId })
+      .from(employeeDirectory)
+      .where(eq(employeeDirectory.userId, userId));
     return rows[0] ?? null;
   }
 }
