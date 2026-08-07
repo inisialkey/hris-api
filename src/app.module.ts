@@ -13,6 +13,7 @@ import { TransactionInterceptor } from './database/transaction.interceptor';
 import { ApprovalModule } from './modules/approval';
 import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
+import { DocumentModule } from './modules/document';
 import { EmployeeModule } from './modules/employee';
 import { OrganizationModule } from './modules/organization';
 import { SettingsModule } from './modules/settings';
@@ -92,6 +93,7 @@ registerErrorStatuses(sharedErrorStatus);
     AuditModule,
     SettingsModule,
     OrganizationModule,
+    DocumentModule,
     EmployeeModule,
     ApprovalModule,
     HealthModule,

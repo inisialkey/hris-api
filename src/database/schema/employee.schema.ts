@@ -6,12 +6,12 @@
 // ESM initialisation-order reasons stated there.
 //
 // **Three of §4.1's six tables are absent, and the reason is dependency order
-// rather than scope.** `employee_documents` needs `files`, which
-// document-storage owns (spine order 5). `employee_data_change_requests` and
-// `employee_resignations` need `approval_instances`, which the approval engine
-// owns (spine order 4). Both arrive with their dependency; the business rules
-// they carry — BR-EMP-009, BR-EMP-010 — are unimplemented until then and named
-// in A-195 rather than half-built here.
+// rather than scope.** `employee_documents` needed `files`, and
+// `employee_data_change_requests` / `employee_resignations` needed
+// `approval_instances`. Both dependencies now exist (spine orders 4 and 5), so
+// what remains is this module's own work — the §7 endpoints and the business
+// rules BR-EMP-009, BR-EMP-010, UC-EMP-010 — named in A-195 rather than
+// half-built alongside somebody else's module.
 //
 // RLS and the hand-written constraints ride the generating migration
 // (database-conventions §10 rule 4).
@@ -32,6 +32,7 @@ import {
 
 import { auditColumns, id, softDeleteColumns, tenantId } from './_shared';
 import { employeeStatus, employees, employmentType } from './core.schema';
+import { files } from './document.schema';
 
 export const familyRelationship = pgEnum('family_relationship', [
   'spouse',
@@ -60,13 +61,12 @@ export const employeeContracts = pgTable(
     kind: employmentType('kind').notNull(),
     startDate: date('start_date').notNull(),
     endDate: date('end_date'), // NULL = PKWTT (ck_employee_contracts_end_by_kind)
-    // FK-less on arrival: `files` does not exist yet (document-storage, spine
-    // order 5). The settings precedent — `setting_values.branch_id` shipped the
-    // same way and organization's migration closed it. `fk_employee_contracts_files`
-    // is document-storage's migration to write, because fulfilling a deferral
-    // needs a table to alter. Expiry stays NULL by BR-EMP-007: the end-date
-    // ladder is the reminder, not file expiry.
-    fileId: uuid('file_id'),
+    // Shipped FK-less because `files` did not exist yet (the settings precedent:
+    // `setting_values.branch_id` arrived the same way and organization's
+    // migration closed it). Closed by document-storage's migration, spine order
+    // 5, because fulfilling a deferral needs a table to alter. Expiry stays NULL
+    // by BR-EMP-007: the end-date ladder is the reminder, not file expiry.
+    fileId: uuid('file_id').references(() => files.id),
     note: text('note'),
     lastRemindedDays: integer('last_reminded_days'), // BR-EMP-008 ladder stamp
     ...auditColumns,
