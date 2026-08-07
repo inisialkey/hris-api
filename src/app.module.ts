@@ -10,6 +10,7 @@ import { validateEnv } from './config/env.schema';
 import { DatabaseModule } from './database/database.module';
 import { CryptoModule } from './shared/crypto/crypto.module';
 import { TransactionInterceptor } from './database/transaction.interceptor';
+import { ApprovalModule } from './modules/approval';
 import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
 import { EmployeeModule } from './modules/employee';
@@ -92,6 +93,7 @@ registerErrorStatuses(sharedErrorStatus);
     SettingsModule,
     OrganizationModule,
     EmployeeModule,
+    ApprovalModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,

@@ -27,6 +27,14 @@ export interface OrgQueryPort {
   /** BR-ORG-003 holder rule — approval resolver `position_holder`. */
   positionHolders(positionId: string, asOf: string): Promise<string[]>;
   /**
+   * approval-engine §8's resolver-ref check, added 2026-08-07 with its first
+   * caller. Existence is a different question from `positionHolders` returning
+   * empty — a live but vacant position is what BR-APRV-006's ladder is *for*,
+   * while a deleted one is a chain that can never resolve and belongs in a field
+   * entry at config-write time (A-196).
+   */
+  positionExists(positionId: string): Promise<boolean>;
+  /**
    * The reporting line walked downwards — employee.md §13's "team inverse",
    * added 2026-08-06 with its first caller (UC-EMP-011). **Employee** ids, not
    * user ids: a direct report with no login is still a direct report, and the

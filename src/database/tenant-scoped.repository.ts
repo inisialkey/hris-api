@@ -1,4 +1,4 @@
-import { and, eq, getTableName, isNull, type SQL } from 'drizzle-orm';
+import { and, eq, getTableName, isNull, sql, type SQL } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import { uuidv7 } from 'uuidv7';
 
@@ -43,9 +43,16 @@ export abstract class TenantScopedRepository {
     return this.connection.handle();
   }
 
-  /** `deleted_at IS NULL`, the live-row predicate every read here starts from. */
+  /**
+   * `deleted_at IS NULL`, the live-row predicate every read here starts from —
+   * **or `true` on a table that has no such column.** Not every audited table
+   * soft-deletes: `approval_delegations` ends through `revoked_at` (§4), which is
+   * an update rather than a deletion, and the alternative to this branch was
+   * adding a `deleted_at` nothing writes just to satisfy a base class.
+   */
   protected get live(): SQL {
-    return isNull(columns(this.table).deletedAt);
+    const deletedAt = columns(this.table).deletedAt;
+    return deletedAt ? isNull(deletedAt) : sql`true`;
   }
 
   protected byId(id: string): SQL {
@@ -145,7 +152,7 @@ export abstract class TenantScopedRepository {
 /** The audit-column contract every table on this base satisfies (`_shared.ts`). */
 interface SharedColumns {
   id: PgTable['_']['columns'][string];
-  deletedAt: PgTable['_']['columns'][string];
+  deletedAt?: PgTable['_']['columns'][string];
 }
 
 function columns(table: PgTable): SharedColumns {

@@ -98,6 +98,26 @@ const SKELETON_PERMISSIONS = [
     description: 'Reveal an employee’s ADR-0016 encrypted values',
   },
   {
+    key: 'approval.chain.read',
+    module: 'approval',
+    description: 'Read approval chain configuration',
+  },
+  {
+    key: 'approval.chain.configure',
+    module: 'approval',
+    description: 'Create, edit and archive approval chains',
+  },
+  {
+    key: 'approval.instance.read',
+    module: 'approval',
+    description: 'Oversight grid over every approval instance in scope',
+  },
+  {
+    key: 'approval.delegation.assign',
+    module: 'approval',
+    description: "Manage another user's approval delegation",
+  },
+  {
     key: 'organization.company.read',
     module: 'organization',
     description: 'Read companies in scope',
