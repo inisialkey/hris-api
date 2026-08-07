@@ -8,9 +8,11 @@ import { currentRequestContext, currentTenantContext } from './shared/context';
 import { RedisModule } from './cache/redis.module';
 import { validateEnv } from './config/env.schema';
 import { DatabaseModule } from './database/database.module';
+import { CryptoModule } from './shared/crypto/crypto.module';
 import { TransactionInterceptor } from './database/transaction.interceptor';
 import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
+import { EmployeeModule } from './modules/employee';
 import { OrganizationModule } from './modules/organization';
 import { SettingsModule } from './modules/settings';
 import { AuthzModule, PermissionGuard } from './modules/authz';
@@ -81,11 +83,15 @@ registerErrorStatuses(sharedErrorStatus);
     }),
     DatabaseModule,
     RedisModule,
+    // ADR-0016's key path. Global: the `encryptedText` column type is reachable
+    // from any schema file, so its precondition must be satisfiable anywhere.
+    CryptoModule,
     AuthzModule,
     AuthModule,
     AuditModule,
     SettingsModule,
     OrganizationModule,
+    EmployeeModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,

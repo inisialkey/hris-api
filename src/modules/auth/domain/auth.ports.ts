@@ -1,3 +1,5 @@
+import type { Result } from '../../../shared/result';
+
 /**
  * Repository interfaces, in `domain/` where backend-nestjs §3 puts them.
  *
@@ -201,7 +203,13 @@ export const USER_ACCOUNT_REPOSITORY = Symbol('USER_ACCOUNT_REPOSITORY');
 /** The auth-owned writes to `users`, under the resolved tenant's context. */
 export interface UserAccountRepositoryPort {
   findById(userId: string): Promise<UserAccountRecord | null>;
+  /** `uq_users_tenant_id_email`, pre-checked so the caller can name the field. */
+  findByEmail(email: string): Promise<UserAccountRecord | null>;
+  /** `AccountLifecyclePort.createUserForEmployee`'s write (employee.md BR-EMP-002). */
+  create(values: { email: string; passwordHash: string }): Promise<string>;
   setPasswordHash(userId: string, passwordHash: string, actorId: string): Promise<void>;
+  /** BR-EMP-006's exit: `active` → `inactive`, which BR-AUTH-002's liveness reads. */
+  deactivate(userId: string): Promise<void>;
   /** `locked` → `active` (BR-AUTH-013). `false` = user absent or not locked. */
   unlock(userId: string, actorId: string): Promise<boolean>;
 }
@@ -219,4 +227,16 @@ export interface AuthOutboxPort {
     aggregateId: string;
     payload: Record<string, unknown>;
   }): Promise<void>;
+}
+
+export const ACCOUNT_LIFECYCLE_PORT = Symbol('ACCOUNT_LIFECYCLE_PORT');
+
+/**
+ * authentication.md §13, added 2026-08-02 for employee.md and built with its
+ * only consumer. Both calls run inside the **caller's** transaction: a hire that
+ * fails leaves no orphan login, and an exit that fails leaves no live one.
+ */
+export interface AccountLifecyclePort {
+  createUserForEmployee(employeeId: string, email: string): Promise<Result<{ userId: string }>>;
+  deactivateUser(userId: string, reason: string): Promise<void>;
 }

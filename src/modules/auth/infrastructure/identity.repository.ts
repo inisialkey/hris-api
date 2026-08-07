@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import { ConnectionProvider } from '../../../database/connection.provider';
-import { tenants, users } from '../../../database/schema';
+import { employeeDirectory, tenants, users } from '../../../database/schema';
 import type { IdentityQueryPort } from '../application/ports/auth-services.port';
 
 export interface IdentitySummary {
@@ -26,6 +26,24 @@ export class IdentityRepository implements IdentityQueryPort {
       .select({ email: users.email })
       .from(users)
       .where(and(eq(users.id, userId), isNull(users.deletedAt)));
+    return rows[0] ?? null;
+  }
+
+  /**
+   * §7's `name` and `employeeId`. Through `employee_directory`, never through
+   * `employees`: the view is ADR-0001 rule 6's sanctioned channel, its column
+   * list carries nothing encrypted or masked, and `security_invoker = true`
+   * keeps the read under the caller's RLS. Dependency-lint permits the view name
+   * and keeps rejecting the table (A-195).
+   */
+  async findEmployeeIdentity(
+    userId: string,
+  ): Promise<{ employeeId: string; fullName: string } | null> {
+    const rows = await this.connection
+      .handle()
+      .select({ employeeId: employeeDirectory.employeeId, fullName: employeeDirectory.fullName })
+      .from(employeeDirectory)
+      .where(eq(employeeDirectory.userId, userId));
     return rows[0] ?? null;
   }
 

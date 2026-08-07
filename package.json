@@ -67,7 +67,8 @@
     "moduleFileExtensions": [
       "js",
       "json",
-      "ts"
+      "ts",
+      "mjs"
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
@@ -77,8 +78,18 @@
         {
           "tsconfig": "tsconfig.json"
         }
+      ],
+      "^.+\\.js$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.json",
+          "diagnostics": false
+        }
       ]
     },
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "transformIgnorePatterns": [
+      "node_modules/(?!jose/)"
+    ]
   }
 }

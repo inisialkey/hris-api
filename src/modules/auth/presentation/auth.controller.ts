@@ -166,14 +166,22 @@ export class AuthController {
 
     const user = request.userId ? await this.identity.findUser(request.userId) : null;
     const tenant = await this.identity.findTenant(ctx.tenantId);
+    // `name` and `employeeId` (§7) came back with the employee module on
+    // 2026-08-06, through its published `employee_directory` view rather than
+    // its table — the channel ADR-0001 rule 6 exists for. `null` for a user
+    // with no employee row, which is what makes `employeeId` optional in the
+    // contract (A-195).
+    const employee = request.userId
+      ? await this.identity.findEmployeeIdentity(request.userId)
+      : null;
 
     return {
-      // `name` and `employeeId` are declared by authentication.md §7 and are
-      // absent here on purpose. Both live on `employees`, which the employee
-      // module owns, and reading another module's table directly is the ADR-0001
-      // boundary violation this architecture exists to prevent. They arrive with
-      // that module's query port — which is also when there is a name to return.
-      user: { id: request.userId, email: user?.email },
+      user: {
+        id: request.userId,
+        email: user?.email,
+        name: employee?.fullName ?? null,
+        employeeId: employee?.employeeId ?? null,
+      },
       tenant: tenant ? { id: tenant.id, name: tenant.name, status: tenant.status } : null,
       permissions: [...(authorization?.permissions ?? [])],
       companyScope:

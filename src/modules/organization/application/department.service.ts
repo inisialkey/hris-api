@@ -12,7 +12,7 @@ import {
 } from '../domain/organization.ports';
 import type { DepartmentRow } from '../domain/organization.types';
 import { duplicate } from './field-errors';
-import { requireCompanyInScope } from './scope';
+import { requireCompanyInScope } from '../../../shared/data-scope';
 
 /** BR-ORG-004. Six levels of hierarchy is a company, not a taxonomy. */
 export const MAX_DEPARTMENT_DEPTH = 6;

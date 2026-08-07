@@ -78,6 +78,13 @@
       "when": 1786022949018,
       "tag": "0010_create_organization_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786029804657,
+      "tag": "0011_create_employee_tables",
+      "breakpoints": true
     }
   ]
 }

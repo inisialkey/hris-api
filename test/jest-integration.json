@@ -1,8 +1,12 @@
 {
   "rootDir": "..",
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": ["js", "json", "ts", "mjs"],
   "testRegex": ".*\\.integration\\.spec\\.ts$",
-  "transform": { "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.json" }] },
+  "transform": {
+    "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.json" }],
+    "^.+\\.js$": ["ts-jest", { "tsconfig": "tsconfig.json", "diagnostics": false }]
+  },
+  "transformIgnorePatterns": ["node_modules/(?!jose/)"],
   "testEnvironment": "node",
   "testTimeout": 180000
 }

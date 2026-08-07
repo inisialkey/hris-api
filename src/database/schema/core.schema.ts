@@ -25,6 +25,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import { encryptedText } from '../../shared/crypto/encrypted-text';
 import { auditColumns, id, softDeleteColumns, tenantId } from './_shared';
 
 export const tenantStatus = pgEnum('tenant_status', ['active', 'suspended', 'archived']);
@@ -38,6 +39,39 @@ export const employeeStatus = pgEnum('employee_status', [
   'terminated',
 ]);
 export const employmentType = pgEnum('employment_type', ['pkwt', 'pkwtt']);
+
+// employee.md §4.1's enums for the `employees` columns below. They live here
+// rather than in `employee.schema.ts` for the same reason `employee_status` and
+// `employment_type` already do — the columns that use them are on this table,
+// and a schema file importing a value out of a file that imports it back is an
+// ESM initialisation order bug waiting for the first import to land the other
+// way round. `employee.schema.ts` declares the enums only *its* tables use.
+export const gender = pgEnum('gender', ['male', 'female']);
+export const maritalStatus = pgEnum('marital_status', ['single', 'married', 'divorced', 'widowed']);
+export const religion = pgEnum('religion', [
+  'islam',
+  'protestant',
+  'catholic',
+  'hindu',
+  'buddhist',
+  'confucian',
+]);
+// > ⚠️ VERIFY: confirm against current Indonesian regulation before implementation.
+// — the PTKP category set (employee.md §4.1).
+export const ptkpStatus = pgEnum('ptkp_status', [
+  'tk_0',
+  'tk_1',
+  'tk_2',
+  'tk_3',
+  'k_0',
+  'k_1',
+  'k_2',
+  'k_3',
+  'k_i_0',
+  'k_i_1',
+  'k_i_2',
+  'k_i_3',
+]);
 
 export const tenants = pgTable(
   'tenants',
@@ -262,6 +296,32 @@ export const employees = pgTable(
     joinDate: date('join_date').notNull(),
     employmentType: employmentType('employment_type').notNull(),
     status: employeeStatus('status').notNull().default('active'),
+
+    // ------------------------------------------------------------------
+    // employee.md §4.1 — master data, added by that module's migration.
+    // The ADR-0016 encrypted set uses `encryptedText`: repositories see
+    // plaintext, storage sees `v1:`-prefixed AEAD, and BR-AUD-005 layer 1
+    // masks the audit diff off the column type without a list.
+    // ------------------------------------------------------------------
+    nik: encryptedText('nik').notNull(), // ADR-0016
+    nikBidx: text('nik_bidx').notNull(), // BR-EMP-004
+    npwp: encryptedText('npwp'), // NULL = no NPWP (NIK-as-NPWP era)
+    npwpBidx: text('npwp_bidx'),
+    bpjsKesehatanNumber: encryptedText('bpjs_kesehatan_number'),
+    bpjsKetenagakerjaanNumber: encryptedText('bpjs_ketenagakerjaan_number'),
+    bankName: text('bank_name'),
+    bankAccountNumber: encryptedText('bank_account_number'),
+    bankAccountHolder: encryptedText('bank_account_holder'),
+    birthPlace: text('birth_place'),
+    birthDate: date('birth_date').notNull(),
+    gender: gender('gender').notNull(),
+    maritalStatus: maritalStatus('marital_status').notNull(),
+    religion: religion('religion'), // THR mapping (A-020); payroll validates presence
+    ptkpStatus: ptkpStatus('ptkp_status').notNull(), // plaintext by ADR-0016 decision 1
+    address: text('address'),
+    phone: text('phone'),
+    personalEmail: text('personal_email'),
+
     ...auditColumns,
     ...softDeleteColumns,
   },

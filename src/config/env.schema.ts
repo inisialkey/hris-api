@@ -82,6 +82,16 @@ export class EnvSchema {
   @IsInt()
   @Min(1)
   REFRESH_TOKEN_TTL: number = 2_592_000;
+
+  /**
+   * ADR-0016's KEK on a laptop: base64 of 32 bytes. Optional here and required
+   * by `LocalKeyProvider`, which is the only thing that reads it and which
+   * refuses to construct outside `local` and `test` — so a staging pod carrying
+   * this variable by accident still cannot use it (environments.md §6).
+   */
+  @IsOptional()
+  @IsString()
+  LOCAL_KEK?: string;
 }
 
 const NUMERIC: readonly (keyof EnvSchema)[] = [

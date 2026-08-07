@@ -4,6 +4,7 @@ import { OutboxRepository } from '../../database/outbox.repository';
 import { registerErrorStatuses } from '../../shared/error-status.registry';
 import { AuthzModule } from '../authz';
 import { AccountAdminUseCase } from './application/account-admin.use-case';
+import { AccountLifecycleService } from './application/account-lifecycle.service';
 import { DeviceUseCase } from './application/device.use-case';
 import { LoginUseCase } from './application/login.use-case';
 import { PasswordUseCase } from './application/password.use-case';
@@ -21,6 +22,7 @@ import { RefreshUseCase } from './application/refresh.use-case';
 import { SessionUseCase } from './application/session.use-case';
 import { authErrorStatus } from './domain/auth.errors';
 import {
+  ACCOUNT_LIFECYCLE_PORT,
   AUTH_LOOKUP_REPOSITORY,
   AUTH_OUTBOX,
   AUTH_TOKEN_REPOSITORY,
@@ -64,6 +66,9 @@ registerErrorStatuses(authErrorStatus);
     DeviceUseCase,
     PasswordUseCase,
     AccountAdminUseCase,
+    AccountLifecycleService,
+    // authentication.md §13 — served to employee.md and nobody else.
+    { provide: ACCOUNT_LIFECYCLE_PORT, useExisting: AccountLifecycleService },
     { provide: AUTH_LOOKUP_REPOSITORY, useClass: AuthLookupRepository },
     { provide: SESSION_REPOSITORY, useClass: SessionRepository },
     { provide: DEVICE_REPOSITORY, useClass: DeviceRepository },
@@ -83,6 +88,6 @@ registerErrorStatuses(authErrorStatus);
     JwtAuthGuard,
     TenantStatusGuard,
   ],
-  exports: [ACCESS_TOKEN_SERVICE, JwtAuthGuard, TenantStatusGuard],
+  exports: [ACCESS_TOKEN_SERVICE, ACCOUNT_LIFECYCLE_PORT, JwtAuthGuard, TenantStatusGuard],
 })
 export class AuthModule {}

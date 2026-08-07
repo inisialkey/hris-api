@@ -27,6 +27,14 @@ export interface OrgQueryPort {
   /** BR-ORG-003 holder rule — approval resolver `position_holder`. */
   positionHolders(positionId: string, asOf: string): Promise<string[]>;
   /**
+   * The reporting line walked downwards — employee.md §13's "team inverse",
+   * added 2026-08-06 with its first caller (UC-EMP-011). **Employee** ids, not
+   * user ids: a direct report with no login is still a direct report, and the
+   * account filter on `directManagers` exists for the approval engine rather
+   * than for a roster.
+   */
+  directReports(employeeId: string, asOf: string): Promise<string[]>;
+  /**
    * Audience resolution over placement (announcement.md BR-ANN-002).
    * Rules union; a `departmentIds` entry **descends its subtree**, `positionIds`
    * and `jobLevelIds` match exactly. An empty rule set means everyone in scope.
@@ -199,6 +207,17 @@ export interface AssignmentRepositoryPort {
    * it holds for the odd case where the requester also holds the landing position.
    */
   holderUserIds(positionIds: string[], asOf: string, excludeEmployeeId?: string): Promise<string[]>;
+  /**
+   * The same holder rule minus the account filter, answering in employee ids —
+   * `directReports`' projection. Separate rather than a flag on the method above
+   * because the two differ in *what they return* as well as in what they filter,
+   * and a boolean that changes a return type is a method wearing a disguise.
+   */
+  holderEmployeeIds(
+    positionIds: string[],
+    asOf: string,
+    excludeEmployeeId?: string,
+  ): Promise<string[]>;
   audienceEmployeeIds(
     rules: {
       companyId: string | null;

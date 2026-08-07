@@ -1,6 +1,9 @@
+import { randomBytes } from 'node:crypto';
+
 import { Algorithm, hash } from '@node-rs/argon2';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { uuidv7 } from 'uuidv7';
 
@@ -9,10 +12,12 @@ import {
   rolePermissions,
   roles,
   scratchNotes,
+  tenantKeys,
   tenants,
   userRoles,
   users,
 } from './schema';
+import { LocalKeyProvider } from '../shared/crypto/local-key-provider';
 
 /**
  * Local development seed — **temporary**.
@@ -67,6 +72,32 @@ const SKELETON_PERMISSIONS = [
     description: 'Definition-level override for statutory-adjacent keys (settings §2)',
   },
   {
+    key: 'employee.master.read',
+    module: 'employee',
+    description: 'List and read employees (masked)',
+  },
+  { key: 'employee.master.create', module: 'employee', description: 'Hire an employee' },
+  {
+    key: 'employee.master.update',
+    module: 'employee',
+    description: 'Edit master data, contracts and family members',
+  },
+  {
+    key: 'employee.master.delete',
+    module: 'employee',
+    description: 'Soft-delete a terminal-status employee',
+  },
+  {
+    key: 'employee.termination.execute',
+    module: 'employee',
+    description: 'Terminate an employee',
+  },
+  {
+    key: 'employee.sensitive.read',
+    module: 'employee',
+    description: 'Reveal an employee’s ADR-0016 encrypted values',
+  },
+  {
     key: 'organization.company.read',
     module: 'organization',
     description: 'Read companies in scope',
@@ -106,6 +137,11 @@ async function main(): Promise<void> {
 
   const pool = new Pool({ connectionString: url, max: 1 });
   const db = drizzle(pool);
+  // The provider refuses to construct outside `local`, which the guard above
+  // has already asserted — belt and braces, one line apart.
+  const keys = new LocalKeyProvider({
+    get: (name: string) => process.env[name],
+  } as unknown as ConfigService);
 
   try {
     const passwordHash = await hash(DEV_PASSWORD, {
@@ -128,6 +164,20 @@ async function main(): Promise<void> {
     for (const spec of TENANTS) {
       const tenantId = uuidv7();
       await db.insert(tenants).values({ id: tenantId, name: spec.name, slug: spec.slug });
+
+      // ADR-0016 decision 4 — the per-tenant DEK and index key, wrapped under the
+      // KEK, generated **before** the tenant transaction so a KMS call never
+      // holds one open (system-administration.md BR-ADM-005). Provisioning owns
+      // this write when it ships; until then a tenant seeded without it cannot
+      // hold an employee at all, because every encrypted column would fail loud.
+      // `tenant_keys` is platform-class — no RLS — so it goes on the plain handle.
+      await db.insert(tenantKeys).values({
+        id: uuidv7(),
+        tenantId,
+        wrappedDek: await keys.wrap(randomBytes(32)),
+        wrappedIndexKey: await keys.wrap(randomBytes(32)),
+        kekVersion: keys.activeKekVersion(),
+      });
 
       // Everything below is tenant-class, so it goes through the same
       // transaction + set_config the request path uses.

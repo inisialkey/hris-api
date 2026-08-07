@@ -49,6 +49,9 @@ describe('PasswordUseCase', () => {
     };
 
     const users = {
+      findByEmail: () => Promise.resolve(null),
+      create: () => Promise.resolve('u-new'),
+      deactivate: () => Promise.resolve(),
       findById: () => Promise.resolve(user),
       setPasswordHash: (userId: string, hash: string) => {
         setHashes.push({ userId, hash });

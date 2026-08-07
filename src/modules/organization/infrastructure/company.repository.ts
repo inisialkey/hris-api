@@ -6,7 +6,7 @@ import {
   branches,
   companies,
   departments,
-  employees,
+  employeeDirectory,
   positions,
   userRoles,
 } from '../../../database/schema';
@@ -71,13 +71,13 @@ export class CompanyRepository extends TenantScopedRepository implements Company
       .from(branches)
       .where(and(inArray(branches.companyId, companyIds), isNull(branches.deletedAt)))
       .groupBy(branches.companyId);
-    // A-194: reads `employees` directly until employee.md publishes
-    // `employee_directory` (ADR-0001 rule 6). One count, no columns.
+    // ADR-0001 rule 6's published view. One count, no columns — and the view is
+    // exactly the channel that read was waiting for (A-194 retired 2026-08-06).
     const employeeRows = await this.db
-      .select({ companyId: employees.companyId, total: count() })
-      .from(employees)
-      .where(and(inArray(employees.companyId, companyIds), isNull(employees.deletedAt)))
-      .groupBy(employees.companyId);
+      .select({ companyId: employeeDirectory.companyId, total: count() })
+      .from(employeeDirectory)
+      .where(inArray(employeeDirectory.companyId, companyIds))
+      .groupBy(employeeDirectory.companyId);
 
     for (const id of companyIds) result.set(id, { branchCount: 0, employeeCount: 0 });
     for (const row of branchRows) {
@@ -127,15 +127,15 @@ export class CompanyRepository extends TenantScopedRepository implements Company
    * answer. Dependents are removed by explicit acts first, never cascaded.
    */
   async archiveBlockers(id: string): Promise<ArchiveBlocker[]> {
-    // A-194: `employees` and `user_roles` are read directly here — see `counts`.
-    // `user_roles` is authorization-rbac's promise in §9 that a company cannot be
-    // archived out from under a scoped assignment.
+    // Employees through the published view — see `counts`. `user_roles` is read
+    // directly and stays that way: it is authorization-rbac's promise in §9 that
+    // a company cannot be archived out from under a scoped assignment, and that
+    // module publishes no view (A-195).
     const employeeRows = await this.countOf(
-      employees,
+      employeeDirectory,
       and(
-        eq(employees.companyId, id),
-        isNull(employees.deletedAt),
-        inArray(employees.status, ['active', 'on_leave']),
+        eq(employeeDirectory.companyId, id),
+        inArray(employeeDirectory.status, ['active', 'on_leave']),
       ),
     );
     const roleRows = await this.countOf(userRoles, eq(userRoles.companyId, id));
@@ -162,8 +162,9 @@ export class CompanyRepository extends TenantScopedRepository implements Company
   }
 
   private async countOf(
-    table:
-      typeof employees | typeof userRoles | typeof branches | typeof departments | typeof positions,
+    // The blockers span five tables and one view; the shape they share is
+    // "something the query builder can count", which is what this parameter is.
+    table: Parameters<ReturnType<typeof this.db.select>['from']>[0],
     where: SQL | undefined,
   ): Promise<number> {
     const rows = await this.db.select({ total: count() }).from(table).where(where);
