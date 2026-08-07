@@ -1,12 +1,14 @@
-import { Module } from '@nestjs/common';
+import { Module, type OnModuleInit } from '@nestjs/common';
 
 import { OutboxRepository } from '../../database/outbox.repository';
 import { registerErrorStatuses } from '../../shared/error-status.registry';
 import { AuditModule, registerAuditedTables } from '../audit';
 import { AuthModule } from '../auth';
 import { AuthzModule } from '../authz';
+import { registerFileOwner } from '../document';
 import { OrganizationModule } from '../organization';
 import { ContractService } from './application/contract.service';
+import { EmployeeDocumentOwner } from './application/document-owner.service';
 import { EffectuateService } from './application/effectuate.service';
 import { EmployeeHireService } from './application/employee-hire.service';
 import { EmployeeStatusService } from './application/employee-status.service';
@@ -93,6 +95,7 @@ registerAuditedTables({
     RevealService,
     EmployeeStatusService,
     EmployeeHireService,
+    EmployeeDocumentOwner,
 
     { provide: EMPLOYEE_STATUS_PORT, useExisting: EmployeeStatusService },
     { provide: EMPLOYEE_HIRE_PORT, useExisting: EmployeeHireService },
@@ -107,4 +110,16 @@ registerAuditedTables({
   ],
   exports: [EMPLOYEE_STATUS_PORT, EMPLOYEE_HIRE_PORT],
 })
-export class EmployeeModule {}
+export class EmployeeModule implements OnModuleInit {
+  constructor(private readonly documents: EmployeeDocumentOwner) {}
+
+  /**
+   * document-storage §4.2's `employee_document` row, bound to this module's keys
+   * and resolver (§2). In `onModuleInit` rather than at file load — the two
+   * static registries above take literal data, and this one takes an object with
+   * a repository behind it, which only exists once the injector has run.
+   */
+  onModuleInit(): void {
+    registerFileOwner('employee_document', this.documents);
+  }
+}

@@ -98,6 +98,21 @@ const SKELETON_PERMISSIONS = [
     description: 'Reveal an employee’s ADR-0016 encrypted values',
   },
   {
+    key: 'employee.document.create',
+    module: 'employee',
+    description: 'Attach a document to an employee (document-storage §4.2 owner)',
+  },
+  {
+    key: 'employee.document.read',
+    module: 'employee',
+    description: 'Read an employee’s documents; self needs no key',
+  },
+  {
+    key: 'employee.document.delete',
+    module: 'employee',
+    description: 'Remove an employee document',
+  },
+  {
     key: 'approval.chain.read',
     module: 'approval',
     description: 'Read approval chain configuration',

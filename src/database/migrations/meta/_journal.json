@@ -92,6 +92,13 @@
       "when": 1786071102109,
       "tag": "0012_create_approval_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786084585676,
+      "tag": "0013_create_files_table",
+      "breakpoints": true
     }
   ]
 }

@@ -92,6 +92,31 @@ export class EnvSchema {
   @IsOptional()
   @IsString()
   LOCAL_KEK?: string;
+
+  /** ADR-0009's single bucket, per environment. The path grammar is naming §11.4. */
+  @IsString()
+  @IsNotEmpty()
+  GCS_BUCKET!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  FIREBASE_PROJECT_ID!: string;
+
+  /**
+   * The GSA whose identity signs V4 URLs, as an email — **no key material**.
+   * Nothing passes it to the SDK: Application Default Credentials resolve to it
+   * through Workload Identity and sign via IAM `signBlob`. It is declared here
+   * because environments.md §6.4 declares it, and because it is what an operator
+   * greps when a signature comes back with the wrong principal.
+   */
+  @IsOptional()
+  @IsString()
+  GCS_SIGNER_SA?: string;
+
+  /** `local` only (environments.md §6.4) — fake-gcs-server in Compose. */
+  @IsOptional()
+  @IsString()
+  STORAGE_EMULATOR_HOST?: string;
 }
 
 const NUMERIC: readonly (keyof EnvSchema)[] = [
