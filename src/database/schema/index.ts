@@ -11,5 +11,6 @@ export * from './approval.schema';
 export * from './document.schema';
 export * from './notification.schema';
 export * from './inbox.schema';
+export * from './import-export.schema';
 export * from './sysadmin.schema';
 export * from './scratch.schema';

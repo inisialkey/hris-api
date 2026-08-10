@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { Readable, Writable } from 'node:stream';
 
 import { Storage, type Bucket } from '@google-cloud/storage';
 import { Injectable } from '@nestjs/common';
@@ -107,6 +108,23 @@ export class GcsStorage implements StoragePort {
   async exists(path: string): Promise<boolean> {
     const [found] = await this.bucket.file(path).exists();
     return found;
+  }
+
+  /**
+   * UC-DOC-004's write half. `resumable: false` because these objects are
+   * generated in one pass and are megabytes rather than gigabytes — a resumable
+   * session costs an extra round trip and a session URI to lose, for a retry
+   * story the job's own redelivery already provides.
+   */
+  openWrite(path: string, mime: string): Writable {
+    return this.bucket.file(path).createWriteStream({
+      resumable: false,
+      contentType: mime,
+    });
+  }
+
+  openRead(path: string): Readable {
+    return this.bucket.file(path).createReadStream();
   }
 
   /** Staging → final (BR-DOC-004's last step before the row flips). */

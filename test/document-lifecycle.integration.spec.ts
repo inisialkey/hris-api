@@ -1,3 +1,5 @@
+import { Readable, Writable } from 'node:stream';
+
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { uuidv7 } from 'uuidv7';
 
@@ -107,6 +109,21 @@ describe('document storage lifecycle', () => {
       objects.delete(path);
       return Promise.resolve();
     },
+    // UC-DOC-004's two halves (A-200). This suite exercises the client pipeline,
+    // so they are collecting sinks rather than assertions — the worker path has
+    // its own coverage beside `GeneratedFileService`.
+    openWrite: (path) => {
+      const chunks: Buffer[] = [];
+      const sink = new Writable({
+        write(chunk: Buffer, _encoding, done) {
+          chunks.push(chunk);
+          done();
+        },
+      });
+      sink.on('finish', () => objects.set(path, Buffer.concat(chunks)));
+      return sink;
+    },
+    openRead: (path) => Readable.from([objects.get(path) ?? Buffer.alloc(0)]),
   };
 
   beforeAll(async () => {
