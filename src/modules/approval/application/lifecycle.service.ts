@@ -52,6 +52,15 @@ export class InstanceLifecycleService {
       instanceId: instance.id,
       requestType: instance.requestType,
       requestId: instance.requestId,
+      // §12, additive (A-198, hris-handbook PR #32). notification.md §4.2 sends
+      // `approval.instance_decided` to the requester, and this was the only
+      // recipient-bearing event in the terminal set that did not name its
+      // recipient — `approval.step.activated` carries `assigneeUserIds` and
+      // `approval.step.escalated` carries `escalatedToUserIds` for exactly this
+      // reason. The consumer may not read `approval_instances` (ADR-0001 rule 2)
+      // and the payload carried no employee id either, so nothing could bridge
+      // an instance id to a person.
+      requesterUserId: instance.requesterUserId,
     });
     return true;
   }
