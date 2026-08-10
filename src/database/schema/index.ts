@@ -10,5 +10,6 @@ export * from './employee.schema';
 export * from './approval.schema';
 export * from './document.schema';
 export * from './notification.schema';
+export * from './inbox.schema';
 export * from './sysadmin.schema';
 export * from './scratch.schema';
