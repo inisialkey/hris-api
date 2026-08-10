@@ -8,6 +8,7 @@ import { OrganizationModule } from '../organization';
 import { SettingsModule } from '../settings';
 import { ActivationService } from './application/activation.service';
 import { ApprovalService } from './application/approval.service';
+import { ApprovalTaskService } from './application/approval-task.service';
 import { ChainService } from './application/chain.service';
 import { DecideUseCase } from './application/decide.use-case';
 import { DelegationService } from './application/delegation.service';
@@ -21,6 +22,7 @@ import {
   APPROVAL_DIRECTORY,
   APPROVAL_OUTBOX,
   APPROVAL_PORT,
+  APPROVAL_TASK_PORT,
   ASSIGNEE_REPOSITORY,
   CHAIN_REPOSITORY,
   DELEGATION_REPOSITORY,
@@ -89,8 +91,10 @@ registerAuditedTables({
     InstanceQueryService,
     SlaScanService,
     ApprovalService,
+    ApprovalTaskService,
 
     { provide: APPROVAL_PORT, useExisting: ApprovalService },
+    { provide: APPROVAL_TASK_PORT, useExisting: ApprovalTaskService },
 
     { provide: CHAIN_REPOSITORY, useClass: ChainRepository },
     { provide: INSTANCE_REPOSITORY, useClass: InstanceRepository },
@@ -101,6 +105,6 @@ registerAuditedTables({
     { provide: APPROVAL_DIRECTORY, useClass: ApprovalDirectoryRepository },
     { provide: APPROVAL_OUTBOX, useExisting: OutboxRepository },
   ],
-  exports: [APPROVAL_PORT],
+  exports: [APPROVAL_PORT, APPROVAL_TASK_PORT],
 })
 export class ApprovalModule {}

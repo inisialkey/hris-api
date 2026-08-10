@@ -59,6 +59,11 @@ export class StepRepository implements StepRepositoryPort {
     return rows[0] ? toStep(rows[0]) : null;
   }
 
+  async findById(id: string): Promise<StepRow | null> {
+    const rows = await this.db.select().from(approvalSteps).where(eq(approvalSteps.id, id));
+    return rows[0] ? toStep(rows[0]) : null;
+  }
+
   async activate(id: string, version: number, at: Date): Promise<boolean> {
     return this.guarded(id, version, { status: 'active', activatedAt: at });
   }

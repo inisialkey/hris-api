@@ -102,6 +102,51 @@ export interface ApprovalPort {
   cancel(actorUserId: string, requestType: string, requestId: string): Promise<Result<void>>;
 }
 
+export const APPROVAL_TASK_PORT = Symbol('APPROVAL_TASK_PORT');
+
+/** One seat of a step, as the thing an inbox item is made of. */
+export interface ApprovalTask {
+  /** BR-INB-004's `dedupe_key` — the assignee row id, not the user id. */
+  assigneeId: string;
+  userId: string;
+  delegateOfUserId: string | null;
+  delegateOfName: string | null;
+}
+
+export interface ApprovalStepTasks {
+  instanceId: string;
+  stepId: string;
+  requestType: string;
+  requestId: string;
+  requesterUserId: string;
+  requesterName: string | null;
+  context: RequestContext;
+  /** BR-INB-009 — `activated_at + sla_hours`, or `null` when the step has no SLA. */
+  dueAt: Date | null;
+  tasks: ApprovalTask[];
+}
+
+/**
+ * §7's read port, added 2026-08-10 for inbox.md (A-199, hris-handbook PR #33).
+ *
+ * `approval.step.activated` carries `{ instanceId, stepId, assigneeUserIds }`,
+ * which is everything the notification module needs and none of the five things
+ * an inbox item is: BR-INB-004's dedupe key is the **assignee row id**, §4's
+ * `source_ref` holds `requestType` and `requestId`, BR-INB-009 sorts on
+ * `activated_at + sla_hours`, and UC-INB-001 badges the delegate and titles from
+ * the requester and the context. All of it is on this module's tables, which
+ * ADR-0001 rule 2 puts behind a port, and ADR-0010 names the channel for exactly
+ * this case: *"payloads are pointers — consumers re-read state by id."*
+ *
+ * Separate from `ApprovalPort` because that port is five mutations that run
+ * inside the caller's transaction; this is a read, on the `OrgQueryPort`
+ * precedent.
+ */
+export interface ApprovalTaskPort {
+  /** `null` when the step is gone — a purge, or a handler running very late. */
+  stepTasks(stepId: string): Promise<ApprovalStepTasks | null>;
+}
+
 /* ------------------------------------------------------------------------- *
  * Ports consumed. `RoleHolderPort` is authz's and imported from its facade;
  * `OrgQueryPort` is organization's. Only the view read is declared here, because
@@ -219,6 +264,8 @@ export interface StepRepositoryPort {
   createAll(instanceId: string, steps: readonly StepConfig[]): Promise<StepRow[]>;
   listByInstance(instanceId: string): Promise<StepRow[]>;
   findByIndex(instanceId: string, stepIndex: number): Promise<StepRow | null>;
+  /** `ApprovalTaskPort.stepTasks` — an event names the step by id, not by index. */
+  findById(id: string): Promise<StepRow | null>;
   activate(id: string, version: number, at: Date): Promise<boolean>;
   decide(id: string, version: number, status: StepStatus, at: Date): Promise<boolean>;
   /** UC-APRV-007's stamps — idempotency for a re-run of the same scan. */

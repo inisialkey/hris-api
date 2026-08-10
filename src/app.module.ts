@@ -15,6 +15,7 @@ import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
 import { DocumentModule } from './modules/document';
 import { EmployeeModule } from './modules/employee';
+import { InboxModule } from './modules/inbox';
 import { NotificationModule } from './modules/notification';
 import { OrganizationModule } from './modules/organization';
 import { SettingsModule } from './modules/settings';
@@ -98,6 +99,7 @@ registerErrorStatuses(sharedErrorStatus);
     EmployeeModule,
     ApprovalModule,
     NotificationModule,
+    InboxModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,
@@ -115,9 +117,22 @@ registerErrorStatuses(sharedErrorStatus);
     { provide: APP_GUARD, useExisting: TenantStatusGuard },
     { provide: APP_GUARD, useExisting: PermissionGuard },
 
-    // 6 — IdempotencyInterceptor. Absent: nothing here is queue-reachable or
-    // payment-affecting, and api-standards §7 requires the header on exactly
-    // those. It arrives with the first endpoint the offline queue can emit.
+    // 6 — IdempotencyInterceptor. Still absent, and the reason changed on
+    // 2026-08-10: `POST /inbox/{id}/acknowledge` is the first queue-reachable
+    // endpoint in the repository (BR-INB-007 — the platform's single offline
+    // write), so "nothing here is queue-reachable" stopped being true.
+    //
+    // It stays absent because inbox.md §7 declares that endpoint
+    // `Idempotency: accepted`, not required, and because BR-INB-008 already
+    // makes a replay a 200 returning the existing `doneAt` — durable state
+    // rather than a cached response, which offline-sync §5 names as *the*
+    // mechanism for a state-transition op replayed past any store's window. A
+    // Redis fast path would save a round trip and could not add correctness.
+    //
+    // It arrives with the first endpoint whose §7 block says **required** —
+    // attendance's punch, or a payment-affecting payroll action — because those
+    // are creates, where `op_id` uniqueness and a stored response are the only
+    // things standing between a retry and a duplicate (A-199).
 
     // 7 — transaction + set_config('app.tenant_id')
     { provide: APP_INTERCEPTOR, useClass: TransactionInterceptor },
