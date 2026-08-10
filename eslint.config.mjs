@@ -29,6 +29,15 @@ export default tseslint.config(
       ],
       // §8: the injected pino logger only.
       'no-console': 'error',
+      // A leading underscore marks a binding that exists for a framework rather
+      // than for the code — a Nest `@Body()` DTO whose only job is to make the
+      // ValidationPipe run, an interceptor's unused `ExecutionContext`. The
+      // default `after-used` already tolerates those in leading positions; this
+      // makes the intent explicit instead of positional.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
     },
   },
   {

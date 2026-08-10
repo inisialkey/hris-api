@@ -15,6 +15,7 @@ import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
 import { DocumentModule } from './modules/document';
 import { EmployeeModule } from './modules/employee';
+import { NotificationModule } from './modules/notification';
 import { OrganizationModule } from './modules/organization';
 import { SettingsModule } from './modules/settings';
 import { AuthzModule, PermissionGuard } from './modules/authz';
@@ -96,6 +97,7 @@ registerErrorStatuses(sharedErrorStatus);
     DocumentModule,
     EmployeeModule,
     ApprovalModule,
+    NotificationModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,
