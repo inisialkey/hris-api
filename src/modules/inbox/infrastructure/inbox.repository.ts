@@ -236,6 +236,13 @@ export class InboxRepository implements InboxRepositoryPort {
    * BR-INB-010 — *"`open` items never purge"*, which is the `ne` below and the
    * whole rule: a pending task must not silently vanish, and a stuck instance is
    * the engine's problem to surface (BR-APRV-006).
+   *
+   * The window is measured from `created_at` because it is the only stamp every
+   * non-`open` item has: §4 gives a `done` item `done_at` and a `closed` one
+   * nothing but its reason, so measuring from the ending would leave half the
+   * set unmeasurable. The rule says *"after `inbox.retention_days` once
+   * non-`open`"* without naming the origin, and `notifications` purges on the
+   * same basis.
    */
   async deleteClosedBefore(cutoff: Date, limit: number): Promise<number> {
     const doomed = await this.db
