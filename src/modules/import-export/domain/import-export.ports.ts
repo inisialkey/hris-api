@@ -82,8 +82,6 @@ export interface ExportJobPatch {
 export interface ExportJobRepositoryPort {
   insert(type: string, params: ExportJobParams): Promise<ExportJobRow>;
   findById(id: string): Promise<ExportJobRow | null>;
-  /** BR-IMP-010's resolver read: which export job produced this output file. */
-  findByFileId(fileId: string): Promise<ExportJobRow | null>;
   list(
     filter: { type?: string; status?: ExportJobStatus },
     page: Page,

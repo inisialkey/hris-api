@@ -234,10 +234,6 @@ export class FakeExportJobs implements ExportJobRepositoryPort {
     return Promise.resolve(this.rows.get(id) ?? null);
   }
 
-  findByFileId(fileId: string): Promise<ExportJobRow | null> {
-    return Promise.resolve([...this.rows.values()].find((row) => row.fileId === fileId) ?? null);
-  }
-
   list(
     filter: { type?: string; status?: ExportJobStatus },
     page: Page,

@@ -56,16 +56,6 @@ export class ExportJobRepository implements ExportJobRepositoryPort {
     return rows[0] ? toRow(rows[0]) : null;
   }
 
-  /**
-   * BR-IMP-010's resolver read. The `file_id` on an export job is the only link
-   * between an output file and the requester who is allowed to download it, so
-   * this is what the `FileOwner` predicate runs.
-   */
-  async findByFileId(fileId: string): Promise<ExportJobRow | null> {
-    const rows = await this.db.select().from(exportJobs).where(eq(exportJobs.fileId, fileId));
-    return rows[0] ? toRow(rows[0]) : null;
-  }
-
   async list(
     filter: { type?: string; status?: ExportJobStatus },
     page: Page,

@@ -575,9 +575,6 @@ describe('import-export lifecycle', () => {
       exports_.update(job.id, { status: 'completed', fileId: null, rowCount: 12 }),
     );
     expect(completed).toMatchObject({ status: 'completed', rowCount: 12 });
-
-    const byFile = await inTenant(userA, () => exports_.findByFileId(uuidv7()));
-    expect(byFile).toBeNull();
   });
 
   it('enqueues an export through the service with the caller\u2019s frozen columns', async () => {
