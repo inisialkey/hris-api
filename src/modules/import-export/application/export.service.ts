@@ -81,12 +81,21 @@ export class ExportService {
     // params, and the resolution happens *"at enqueue, before the permission
     // check and before BR-IMP-010's entitlement freeze"* — which is this order.
     const resolved = await resolve(definition, params.value);
-    if (resolved.requiredPermission !== definition.requiredPermission) {
-      const held = await this.access.heldPermissions();
-      if (!held.has(resolved.requiredPermission)) return fail(sharedErrors.notFound());
+    const held = await this.access.heldPermissions();
+    // A resolved permission the caller lacks is **404**, not the
+    // `VAL_INVALID_ENUM` an unrunnable `type` gets — and the difference is the
+    // field, not an inconsistency. The type is a body field with an enum
+    // contract; a resolved key hangs off a *param* naming a row in a consumer's
+    // own registry, which reports.md §11 answers as `SYS_NOT_FOUND` *"because
+    // the catalog already hid it"*. Same existence hiding, each in the shape its
+    // own document fixed.
+    if (
+      resolved.requiredPermission !== definition.requiredPermission &&
+      !held.has(resolved.requiredPermission)
+    ) {
+      return fail(sharedErrors.notFound());
     }
 
-    const held = await this.access.heldPermissions();
     const entitlement = entitledColumns(resolved.columnSets, held);
 
     const stored: ExportJobParams = {
