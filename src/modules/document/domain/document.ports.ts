@@ -1,4 +1,6 @@
-import type { CategoryUsage, FileRow, FileStatus } from './document.types';
+import type { Readable, Writable } from 'node:stream';
+
+import type { CategoryUsage, EntityRef, FileRow, FileStatus } from './document.types';
 
 export const STORAGE_PORT = Symbol('STORAGE_PORT');
 
@@ -40,6 +42,21 @@ export interface StoragePort {
   move(from: string, to: string): Promise<void>;
   /** Idempotent: an object already gone is a purge that already ran. */
   remove(path: string): Promise<void>;
+  /**
+   * UC-DOC-004's write half — bytes straight to the final path, no staging,
+   * because they never left the server. The `Writable` is what a generator
+   * (exceljs, Puppeteer) pipes into; the caller never assembles a buffer, which
+   * is what keeps a ten-thousand-row workbook inside a bounded footprint
+   * (ADR-0015).
+   */
+  openWrite(path: string, mime: string): Writable;
+  /**
+   * The server-side read half. **Not a client path**: ADR-0009's *"the API never
+   * proxies bytes"* binds the metadata plane between a client and storage, and
+   * this is a worker parsing a file it was asked to import (UC-IMP-002). Nothing
+   * here reaches an HTTP response.
+   */
+  openRead(path: string): Readable;
 }
 
 export const FILE_REPOSITORY = Symbol('FILE_REPOSITORY');
@@ -89,6 +106,14 @@ export interface FileRepositoryPort {
     page: Page,
   ): Promise<Paged<FileRow>>;
   commit(id: string, patch: CommitPatch): Promise<FileRow | null>;
+  /**
+   * UC-IMP-001's re-parent. A slot is requested before the job that will own the
+   * file exists, so it is parented to the uploader; the job creation moves it in
+   * the same transaction. Narrow on purpose — the entity moves and nothing else,
+   * because a method that could also change the category would be a way around
+   * the registry.
+   */
+  reparent(id: string, ref: EntityRef): Promise<FileRow | null>;
   /** BR-DOC-004: a failed commit leaves the row staged and records why. */
   recordCommitFailure(id: string, code: string): Promise<void>;
   softDelete(id: string, at: Date, by?: string): Promise<FileRow | null>;
@@ -115,6 +140,62 @@ export interface DocumentOutboxPort {
     aggregateId: string;
     payload: Record<string, unknown>;
   }): Promise<void>;
+}
+
+export const DOCUMENT_PORT = Symbol('DOCUMENT_PORT');
+
+export interface GeneratedFileCommand {
+  readonly category: string;
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly fileName: string;
+  readonly mime: string;
+}
+
+/**
+ * **UC-DOC-004's port, declared 2026-08-10 with its first caller**
+ * (A-200, hris-handbook PR #34, import-export). The facade's own comment named the condition for it: four
+ * module documents ask for a `DocumentPort`, none declares its shape, and a port
+ * whose methods only its first caller can define is the one employee withheld as
+ * `EmployeePayrollPort` (A-195). import-export is that caller, and it defines
+ * all four methods precisely.
+ *
+ * UC-DOC-004 in one sentence — *"workers write objects directly to the final
+ * path via the GCS SDK and insert `committed` rows in the same unit of work (no
+ * staging — bytes never left the server)"* — plus the two reads a job needs
+ * around it, and the re-parent UC-IMP-001 requires.
+ *
+ * **No download minting here.** That stays on `GET /documents/{id}/download-url`
+ * where the gate and the sensitive-read trail live (UC-DOC-003); a port that
+ * minted URLs would be a second access path with none of it.
+ */
+export interface DocumentPort {
+  /**
+   * Streams whatever `write` produces into the final path, hashing and counting
+   * as it goes, and returns the `committed` metadata row. The digest and the
+   * size are measured rather than declared — there is no uploader to distrust
+   * here, but `files.sha256` means "these bytes" and only a measurement says so.
+   */
+  storeGenerated(
+    command: GeneratedFileCommand,
+    write: (sink: Writable) => Promise<void>,
+  ): Promise<FileRow>;
+  /** `null` for an unknown, deleted, or still-staged file. */
+  find(fileId: string): Promise<FileRow | null>;
+  /** Bytes of a committed file, for a worker that parses them. */
+  openContent(fileId: string): Promise<Readable | null>;
+  reparent(fileId: string, ref: EntityRef): Promise<void>;
+  /**
+   * Retires a file the calling module generated or owns, releasing it to
+   * `cron.document.purge` (BR-DOC-009's object-then-row collection).
+   *
+   * Deliberately **not** gated by `clientDeletable`: that flag answers *"may a
+   * user delete this"* on UC-DOC-005's endpoint, and `import_file` sets it false
+   * precisely because a job artifact is not a user's to remove. The module whose
+   * retention window just expired is a different actor, and import-export §12's
+   * purge is explicit that it collects its stored files *"via document-storage"*.
+   */
+  softDelete(fileId: string): Promise<void>;
 }
 
 export const STORAGE_USAGE_PORT = Symbol('STORAGE_USAGE_PORT');

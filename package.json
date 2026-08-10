@@ -32,6 +32,7 @@
     "class-validator": "^0.14.2",
     "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.44.6",
+    "exceljs": "^4.4.0",
     "ioredis": "^5.8.1",
     "jose": "^6.1.0",
     "nestjs-pino": "^4.4.0",

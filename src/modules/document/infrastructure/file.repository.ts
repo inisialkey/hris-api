@@ -12,7 +12,7 @@ import type {
   Page,
   Paged,
 } from '../domain/document.ports';
-import type { CategoryUsage, FileRow } from '../domain/document.types';
+import type { CategoryUsage, EntityRef, FileRow } from '../domain/document.types';
 
 type FileSelect = typeof files.$inferSelect;
 
@@ -101,6 +101,25 @@ export class FileRepository implements FileRepositoryPort {
         updatedBy: currentRequestContext()?.userId,
       })
       .where(and(eq(files.id, id), eq(files.status, 'staged'), isNull(files.deletedAt)))
+      .returning();
+    return updated[0] ? toFile(updated[0]) : null;
+  }
+
+  /**
+   * UC-IMP-001's re-parent, and the `status = 'committed'` predicate is the
+   * guard rather than a filter: a staged row is a file nobody verified, and
+   * moving one onto a job would make an unverified upload look like that job's
+   * source workbook.
+   */
+  async reparent(id: string, ref: EntityRef): Promise<FileRow | null> {
+    const updated = await this.db
+      .update(files)
+      .set({
+        entityType: ref.entityType,
+        entityId: ref.entityId,
+        updatedBy: currentRequestContext()?.userId,
+      })
+      .where(and(eq(files.id, id), eq(files.status, 'committed'), isNull(files.deletedAt)))
       .returning();
     return updated[0] ? toFile(updated[0]) : null;
   }

@@ -37,4 +37,25 @@ export class ConnectionProvider {
   inUnitOfWork(): boolean {
     return transactionStore.getStore() !== undefined;
   }
+
+  /**
+   * A nested transaction — a PostgreSQL `SAVEPOINT` when one is already open.
+   *
+   * The single caller is import-export's commit loop, and the reason is
+   * BR-IMP-003: partial mode says *"a bad row is skipped inside its batch, never
+   * a batch rollback"*, and a failed statement in PostgreSQL aborts its whole
+   * transaction unless a savepoint is standing. Without this, one row hitting a
+   * constraint would take every row after it — which is precisely the
+   * all-or-nothing behaviour partial mode exists to refuse. Strict mode uses the
+   * same primitive from the other end: one savepoint around the whole loop, so
+   * *"nothing written"* can be true while the job row still records why.
+   *
+   * It sits here rather than in the module because reaching a transaction handle
+   * is `src/database`'s job (backend-nestjs §8.1) — business code neither opens
+   * units of work nor names Drizzle's transaction type.
+   */
+  async savepoint<T>(fn: () => Promise<T>): Promise<T> {
+    const handle = this.handle();
+    return handle.transaction(async (nested) => transactionStore.run(nested, fn));
+  }
 }

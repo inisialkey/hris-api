@@ -9,11 +9,13 @@ import { DeleteFileUseCase } from './application/delete.use-case';
 import { DocumentJobsService } from './application/document-jobs.service';
 import { DownloadUseCase } from './application/download.use-case';
 import { FileQueryService } from './application/file-query.service';
+import { GeneratedFileService } from './application/generated-file.service';
 import { StorageUsageService } from './application/storage-usage.service';
 import { UploadUseCase } from './application/upload.use-case';
 import { documentErrorStatus } from './domain/document.errors';
 import {
   DOCUMENT_OUTBOX,
+  DOCUMENT_PORT,
   FILE_REPOSITORY,
   STORAGE_PORT,
   STORAGE_USAGE_PORT,
@@ -56,12 +58,14 @@ registerErrorStatuses(documentErrorStatus);
     DeleteFileUseCase,
     DocumentJobsService,
     StorageUsageService,
+    GeneratedFileService,
 
     { provide: FILE_REPOSITORY, useClass: FileRepository },
     { provide: STORAGE_PORT, useClass: GcsStorage },
     { provide: DOCUMENT_OUTBOX, useExisting: OutboxRepository },
     { provide: STORAGE_USAGE_PORT, useExisting: StorageUsageService },
+    { provide: DOCUMENT_PORT, useExisting: GeneratedFileService },
   ],
-  exports: [STORAGE_USAGE_PORT],
+  exports: [STORAGE_USAGE_PORT, DOCUMENT_PORT],
 })
 export class DocumentModule {}
