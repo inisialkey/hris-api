@@ -21,6 +21,7 @@ import { InboxModule } from './modules/inbox';
 import { NotificationModule } from './modules/notification';
 import { OrganizationModule } from './modules/organization';
 import { SettingsModule } from './modules/settings';
+import { ShiftModule } from './modules/shift';
 import { AuthzModule, PermissionGuard } from './modules/authz';
 import { HealthModule } from './modules/health/health.module';
 import { ScratchModule } from './modules/scratch/scratch.module';
@@ -104,6 +105,7 @@ registerErrorStatuses(sharedErrorStatus);
     InboxModule,
     ImportExportModule,
     HolidayModule,
+    ShiftModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,
