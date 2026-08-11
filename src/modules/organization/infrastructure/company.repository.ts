@@ -34,6 +34,14 @@ export class CompanyRepository extends TenantScopedRepository implements Company
     super(connection, companies, audit);
   }
 
+  async listAllIds(): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: companies.id })
+      .from(companies)
+      .where(isNull(companies.deletedAt));
+    return rows.map((row) => row.id);
+  }
+
   async list(
     filter: { q?: string; companyIds: string[] | null },
     page: Page,

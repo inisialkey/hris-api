@@ -4,7 +4,7 @@ import {
   setTenantContext,
   type ResolvedAuthorization,
 } from '../../../shared/context';
-import type { PeriodLock, PeriodLockPort } from '../../../shared/period-lock.port';
+import type { LockedDate, PeriodLockPort } from '../../../shared/period-lock.port';
 import type {
   AssignmentRepositoryPort,
   BranchRepositoryPort,
@@ -25,7 +25,7 @@ describe('MoveUseCase', () => {
   const NOW = new Date(`${TODAY}T03:00:00Z`);
 
   let history: AssignmentRow[];
-  let lock: PeriodLock | null;
+  let lock: LockedDate | null;
   let employeeCompany: string;
   let positionCompany: string;
   let branchCompany: string;
@@ -84,7 +84,10 @@ describe('MoveUseCase', () => {
       findByUserId: () => Promise.resolve({ id: 'e-1', companyId: employeeCompany }),
     };
 
-    const periods: PeriodLockPort = { lockAt: () => Promise.resolve(lock) };
+    const periods: PeriodLockPort = {
+      isLocked: () => Promise.resolve(lock !== null),
+      firstLockedDate: () => Promise.resolve(lock),
+    };
 
     const cache: PlacementCachePort = {
       read: () => Promise.resolve(null),
@@ -184,7 +187,7 @@ describe('MoveUseCase', () => {
     });
 
     it('refuses a date inside a locked period (BR-ORG-008)', async () => {
-      lock = { periodId: 'per-1' };
+      lock = { date: '2026-03-01', periodId: 'per-1', label: 'March 2026' };
 
       const result = await asAdmin(() => build().move('e-1', request()));
 
@@ -269,7 +272,7 @@ describe('MoveUseCase', () => {
     });
 
     it('refuses a locked period', async () => {
-      lock = { periodId: 'per-1' };
+      lock = { date: '2026-03-01', periodId: 'per-1', label: 'March 2026' };
 
       const result = await asAdmin(() => build().cancel('e-1', 'b'));
 

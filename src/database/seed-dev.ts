@@ -162,6 +162,21 @@ const SKELETON_PERMISSIONS = [
     module: 'organization',
     description: 'Move employees and cancel scheduled moves',
   },
+  {
+    key: 'holiday.calendar.read',
+    module: 'holiday',
+    description: 'Read raw calendar rows and resolve any in-scope calendar',
+  },
+  {
+    key: 'holiday.calendar.configure',
+    module: 'holiday',
+    description: 'Create, edit, negate and delete calendar rows',
+  },
+  {
+    key: 'holiday.calendar.import',
+    module: 'holiday',
+    description: 'Run the yearly calendar import',
+  },
 ];
 
 async function main(): Promise<void> {

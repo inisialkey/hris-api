@@ -1,6 +1,8 @@
 import { runInContextScope, setTenantContext } from '../../../shared/context';
 import type {
   AssignmentRepositoryPort,
+  BranchRepositoryPort,
+  CompanyRepositoryPort,
   DepartmentRepositoryPort,
   PlacementCachePort,
   PositionRepositoryPort,
@@ -79,7 +81,17 @@ describe('OrgQueryService', () => {
       bust: () => Promise.resolve(),
     };
 
-    return new OrgQueryService(assignments, positions, departments, cache, { now: () => NOW });
+    const branches = {
+      findById: (id: string) => Promise.resolve(id === 'br-1' ? { id, companyId: 'co-1' } : null),
+    } as unknown as BranchRepositoryPort;
+
+    const companies = {
+      listAllIds: () => Promise.resolve(['co-1', 'co-2']),
+    } as unknown as CompanyRepositoryPort;
+
+    return new OrgQueryService(assignments, positions, departments, branches, companies, cache, {
+      now: () => NOW,
+    });
   }
 
   function inTenant<T>(fn: () => Promise<T>): Promise<T> {

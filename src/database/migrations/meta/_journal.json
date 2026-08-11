@@ -120,6 +120,13 @@
       "when": 1786344770142,
       "tag": "0016_create_import_export_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786413342678,
+      "tag": "0017_create_holiday_table",
+      "breakpoints": true
     }
   ]
 }
