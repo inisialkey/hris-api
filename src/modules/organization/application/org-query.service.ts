@@ -4,11 +4,15 @@ import { CLOCK, type Clock } from '../../../shared/clock.port';
 import { requireTenantContext } from '../../../shared/context';
 import {
   ASSIGNMENT_REPOSITORY,
+  BRANCH_REPOSITORY,
+  COMPANY_REPOSITORY,
   DEPARTMENT_REPOSITORY,
   PLACEMENT_CACHE,
   POSITION_REPOSITORY,
   type AssignmentRepositoryPort,
   type AudienceRules,
+  type BranchRepositoryPort,
+  type CompanyRepositoryPort,
   type DepartmentRepositoryPort,
   type OrgQueryPort,
   type PlacementCachePort,
@@ -27,6 +31,8 @@ export class OrgQueryService implements OrgQueryPort {
     @Inject(ASSIGNMENT_REPOSITORY) private readonly assignments: AssignmentRepositoryPort,
     @Inject(POSITION_REPOSITORY) private readonly positions: PositionRepositoryPort,
     @Inject(DEPARTMENT_REPOSITORY) private readonly departments: DepartmentRepositoryPort,
+    @Inject(BRANCH_REPOSITORY) private readonly branches: BranchRepositoryPort,
+    @Inject(COMPANY_REPOSITORY) private readonly companies: CompanyRepositoryPort,
     @Inject(PLACEMENT_CACHE) private readonly cache: PlacementCachePort,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
@@ -57,6 +63,16 @@ export class OrgQueryService implements OrgQueryPort {
   /** approval-engine §8 — live row, this tenant (RLS supplies the tenant). */
   async positionExists(positionId: string): Promise<boolean> {
     return (await this.positions.findById(positionId)) !== null;
+  }
+
+  /** holiday.md §8's scope check — one read, and `null` is both "gone" and "not yours". */
+  async branchCompanyId(branchId: string): Promise<string | null> {
+    return (await this.branches.findById(branchId))?.companyId ?? null;
+  }
+
+  /** holiday.md BR-HOL-008's enumeration — every live company, ids only. */
+  async companyIds(): Promise<string[]> {
+    return this.companies.listAllIds();
   }
 
   /** One query, keyed result — the grid form. Uncached: a page is a different shape. */

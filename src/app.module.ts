@@ -15,6 +15,7 @@ import { AuditModule } from './modules/audit';
 import { AuthModule, JwtAuthGuard, TenantStatusGuard } from './modules/auth';
 import { DocumentModule } from './modules/document';
 import { EmployeeModule } from './modules/employee';
+import { HolidayModule } from './modules/holiday';
 import { ImportExportModule } from './modules/import-export';
 import { InboxModule } from './modules/inbox';
 import { NotificationModule } from './modules/notification';
@@ -102,6 +103,7 @@ registerErrorStatuses(sharedErrorStatus);
     NotificationModule,
     InboxModule,
     ImportExportModule,
+    HolidayModule,
     HealthModule,
     // Deleted with the walking skeleton (roadmap §4.1).
     ScratchModule,

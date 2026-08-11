@@ -69,7 +69,7 @@ export class MoveUseCase {
     const agreement = await this.sameCompany(employee.companyId, request);
     if (!agreement.ok) return agreement;
 
-    const unlocked = await this.requireUnlocked(employeeId, request.effectiveFrom);
+    const unlocked = await this.requireUnlocked(employee.companyId, request.effectiveFrom);
     if (!unlocked.ok) return unlocked;
 
     const history = await this.assignments.liveHistory(employeeId);
@@ -97,7 +97,7 @@ export class MoveUseCase {
     const target = await this.assignments.findById(assignmentId);
     if (!target || target.employeeId !== employeeId) return fail(sharedErrors.notFound());
 
-    const unlocked = await this.requireUnlocked(employeeId, target.effectiveFrom);
+    const unlocked = await this.requireUnlocked(employee.companyId, target.effectiveFrom);
     if (!unlocked.ok) return unlocked;
 
     const history = await this.assignments.liveHistory(employeeId);
@@ -172,8 +172,8 @@ export class MoveUseCase {
    * the first open date instead, and the retro effects are payroll's mechanism
    * rather than a placement rewrite (§9).
    */
-  private async requireUnlocked(employeeId: string, date: string): Promise<Result<void>> {
-    const lock = await this.periods.lockAt(employeeId, date);
+  private async requireUnlocked(companyId: string, date: string): Promise<Result<void>> {
+    const lock = await this.periods.firstLockedDate(companyId, [date]);
     return lock
       ? fail(organizationErrors.periodLocked({ periodId: lock.periodId }))
       : ok(undefined);

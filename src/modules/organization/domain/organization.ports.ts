@@ -43,6 +43,22 @@ export interface OrgQueryPort {
    */
   directReports(employeeId: string, asOf: string): Promise<string[]>;
   /**
+   * The company a live branch belongs to, or `null` when no live branch has that
+   * id — holiday.md §8's *"resolvable in caller scope"* check, added 2026-08-11
+   * with its first caller. One method rather than a boolean `branchExists`,
+   * because every caller that asks whether a branch exists is really asking
+   * whether it belongs to the company it was named beside, and a `true` that
+   * does not answer that is a check somebody has to remember to pair.
+   */
+  branchCompanyId(branchId: string): Promise<string | null>;
+  /**
+   * Every live company of the tenant, added 2026-08-11 with its first caller.
+   * holiday.md BR-HOL-008 rejects a write whose date sits in a **locked** period,
+   * and a tenant-wide holiday row addresses every company at once while
+   * `PeriodLockPort` answers about one — so the caller enumerates.
+   */
+  companyIds(): Promise<string[]>;
+  /**
    * Audience resolution over placement (announcement.md BR-ANN-002).
    * Rules union; a `departmentIds` entry **descends its subtree**, `positionIds`
    * and `jobLevelIds` match exactly. An empty rule set means everyone in scope.
@@ -101,6 +117,8 @@ export interface Paged<T> {
 export const COMPANY_REPOSITORY = Symbol('COMPANY_REPOSITORY');
 
 export interface CompanyRepositoryPort {
+  /** Ids only — `companyIds`' backing read, and never a page (a tenant has a handful). */
+  listAllIds(): Promise<string[]>;
   list(filter: { q?: string; companyIds: string[] | null }, page: Page): Promise<Paged<CompanyRow>>;
   counts(
     companyIds: string[],
