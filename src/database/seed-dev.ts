@@ -177,6 +177,23 @@ const SKELETON_PERMISSIONS = [
     module: 'holiday',
     description: 'Run the yearly calendar import',
   },
+  {
+    key: 'shift.definition.read',
+    module: 'shift',
+    description: 'Read shift definitions and patterns',
+  },
+  {
+    key: 'shift.definition.configure',
+    module: 'shift',
+    description: 'Create, edit and archive shifts and patterns',
+  },
+  { key: 'shift.roster.read', module: 'shift', description: 'Read any employee’s roster' },
+  {
+    key: 'shift.roster.assign',
+    module: 'shift',
+    description: 'Assign patterns and edit roster days',
+  },
+  { key: 'shift.roster.import', module: 'shift', description: 'Import a monthly roster' },
 ];
 
 async function main(): Promise<void> {

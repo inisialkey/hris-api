@@ -8,6 +8,7 @@ export * from './settings.schema';
 export * from './organization.schema';
 export * from './employee.schema';
 export * from './holiday.schema';
+export * from './shift.schema';
 export * from './approval.schema';
 export * from './document.schema';
 export * from './notification.schema';
